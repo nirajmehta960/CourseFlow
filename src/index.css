@@ -1,0 +1,330 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CourseFlow LMS - Premium Canvas-inspired Design System */
+
+@layer base {
+  :root {
+    /* Core backgrounds - Clean whites */
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11%;
+
+    /* Cards & surfaces */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary - Deep blue for trust & professionalism */
+    --primary: 220 70% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Soft slate */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 9% 46%;
+
+    /* Muted - Subtle grays */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+
+    /* Accent - Warm amber for attention */
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Success - Professional green */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning */
+    --warning: 38 92% 50%;
+    --warning-foreground: 26 83% 14%;
+
+    /* Borders & inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 220 70% 50%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar - Clean dark navy */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 213 27% 84%;
+    --sidebar-primary: 220 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 47% 15%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 47% 18%;
+    --sidebar-ring: 220 70% 55%;
+    --sidebar-muted: 215 16% 47%;
+
+    /* Course nav */
+    --course-nav-bg: 0 0% 100%;
+    --course-nav-border: 220 13% 91%;
+    --course-nav-active: 220 70% 50%;
+
+    /* Shadows - Subtle and elegant */
+    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+    --shadow-glow: 0 0 20px hsl(220 70% 50% / 0.15);
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 220 70% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 47% 15%;
+    --secondary-foreground: 210 40% 90%;
+
+    --muted: 222 47% 15%;
+    --muted-foreground: 215 16% 57%;
+
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 222 47% 18%;
+    --input: 222 47% 18%;
+    --ring: 220 70% 55%;
+
+    --sidebar-background: 222 47% 4%;
+    --sidebar-foreground: 213 27% 84%;
+    --sidebar-primary: 220 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 222 47% 10%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 222 47% 12%;
+    --sidebar-ring: 220 70% 55%;
+    --sidebar-muted: 215 16% 47%;
+
+    --course-nav-bg: 222 47% 9%;
+    --course-nav-border: 222 47% 15%;
+    --course-nav-active: 220 70% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+    font-variation-settings: "opsz" 32;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-semibold tracking-tight text-foreground;
+  }
+
+  h1 {
+    @apply text-2xl;
+  }
+
+  h2 {
+    @apply text-xl;
+  }
+
+  h3 {
+    @apply text-lg;
+  }
+}
+
+@layer components {
+  /* Clean card with subtle shadow */
+  .card-elevated {
+    @apply bg-card rounded-lg border border-border shadow-sm transition-shadow duration-200;
+  }
+
+  .card-elevated:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Simple hover effect - no transform, just subtle shadow */
+  .card-interactive {
+    @apply bg-card rounded-lg border border-border transition-all duration-200 cursor-pointer;
+  }
+
+  .card-interactive:hover {
+    @apply border-primary/30;
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Navigation link - sidebar */
+  .nav-link {
+    @apply relative flex items-center gap-3 px-3 py-2.5 text-sidebar-foreground/70 transition-colors duration-150 rounded-md text-sm font-medium;
+  }
+
+  .nav-link:hover {
+    @apply bg-sidebar-accent text-sidebar-foreground;
+  }
+
+  .nav-link.active {
+    @apply bg-sidebar-primary text-sidebar-primary-foreground;
+  }
+
+  /* Course sidebar navigation */
+  .course-nav-link {
+    @apply relative px-4 py-2.5 text-muted-foreground transition-colors duration-150 text-sm font-medium block;
+  }
+
+  .course-nav-link:hover {
+    @apply text-foreground bg-muted/50;
+  }
+
+  .course-nav-link.active {
+    @apply text-primary font-semibold bg-primary/5 border-l-2 border-primary -ml-px;
+  }
+
+  /* Page header */
+  .page-header {
+    @apply mb-8;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold text-foreground mb-1;
+  }
+
+  .page-description {
+    @apply text-muted-foreground text-sm;
+  }
+
+  /* Section divider */
+  .section-header {
+    @apply flex items-center justify-between mb-4 pb-2 border-b border-border;
+  }
+
+  .section-title {
+    @apply text-sm font-semibold text-foreground uppercase tracking-wide;
+  }
+
+  /* Stats card - clean and minimal */
+  .stat-card {
+    @apply bg-card rounded-lg p-5 border border-border;
+  }
+
+  .stat-label {
+    @apply text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1;
+  }
+
+  .stat-value {
+    @apply text-2xl font-semibold text-foreground;
+  }
+
+  /* Course card - Canvas-inspired simplicity */
+  .course-card {
+    @apply bg-card rounded-lg border border-border overflow-hidden transition-all duration-200;
+  }
+
+  .course-card:hover {
+    @apply border-primary/30 shadow-md;
+  }
+
+  .course-card-header {
+    @apply h-28 relative overflow-hidden;
+  }
+
+  .course-card-body {
+    @apply p-4;
+  }
+
+  .course-card-title {
+    @apply font-semibold text-foreground text-sm line-clamp-2 mb-1;
+  }
+
+  .course-card-meta {
+    @apply text-xs text-muted-foreground;
+  }
+
+  /* Module item */
+  .module-item {
+    @apply flex items-center gap-3 px-4 py-3 border-b border-border last:border-b-0 transition-colors duration-150;
+  }
+
+  .module-item:hover {
+    @apply bg-muted/30;
+  }
+
+  /* Deadline item */
+  .deadline-item {
+    @apply flex items-center justify-between py-3 border-b border-border last:border-b-0;
+  }
+
+  /* Empty state */
+  .empty-state {
+    @apply text-center py-12;
+  }
+
+  .empty-state-icon {
+    @apply w-12 h-12 mx-auto text-muted-foreground/50 mb-3;
+  }
+
+  .empty-state-title {
+    @apply text-foreground font-medium mb-1;
+  }
+
+  .empty-state-description {
+    @apply text-sm text-muted-foreground;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out forwards;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
