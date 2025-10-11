@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,18 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { createAssignment, updateAssignment, getAssignment, Assignment } from "@/lib/assignments-api";
+import { getErrorMessage } from "@/lib/api";
 
 const CreateAssignment = () => {
   const navigate = useNavigate();
-  const { courseId } = useParams();
+  const { courseId, assignmentId } = useParams<{ courseId: string; assignmentId?: string }>();
+  const isEditMode = !!assignmentId;
+  const [loading, setLoading] = useState(isEditMode);
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -48,7 +52,49 @@ const CreateAssignment = () => {
     fileUploads: false,
   });
 
-  const handleSave = () => {
+  // Fetch assignment data if in edit mode
+  useEffect(() => {
+    const fetchAssignment = async () => {
+      if (!isEditMode || !courseId || !assignmentId) return;
+
+      try {
+        setLoading(true);
+        const assignment = await getAssignment(courseId, assignmentId);
+        
+        // Pre-populate form fields
+        setTitle(assignment.title || "");
+        setDescription(assignment.description || "");
+        setPoints(assignment.points?.toString() || "100");
+        
+        // Parse and set due date
+        if (assignment.dueDate) {
+          try {
+            const dueDateObj = parseISO(assignment.dueDate);
+            setDueDate(dueDateObj);
+            // Extract time from ISO string
+            const hours = dueDateObj.getHours().toString().padStart(2, "0");
+            const minutes = dueDateObj.getMinutes().toString().padStart(2, "0");
+            setDueTime(`${hours}:${minutes}`);
+          } catch (error) {
+            console.error("Failed to parse due date:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch assignment:", error);
+        toast({
+          title: "Error",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssignment();
+  }, [isEditMode, courseId, assignmentId]);
+
+  const handleSave = async (publish: boolean = false) => {
     if (!title.trim()) {
       toast({
         title: "Error",
@@ -57,18 +103,68 @@ const CreateAssignment = () => {
       });
       return;
     }
-    
-    toast({
-      title: "Assignment Created",
-      description: `"${title}" has been created successfully.`,
-    });
-    navigate(`/courses/${courseId}/assignments`);
+
+    if (!courseId) {
+      toast({
+        title: "Error",
+        description: "Course ID is missing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Combine date and time into ISO string
+      let dueDateISO: string | undefined = undefined;
+      if (dueDate) {
+        const [hours, minutes] = dueTime.split(":").map(Number);
+        const dateTime = new Date(dueDate);
+        dateTime.setHours(hours, minutes, 0, 0);
+        dueDateISO = dateTime.toISOString();
+      }
+
+      const assignmentData = {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        points: parseFloat(points) || 0,
+        dueDate: dueDateISO,
+        published: publish,
+      };
+
+      if (isEditMode && assignmentId) {
+        await updateAssignment(courseId, assignmentId, assignmentData);
+        toast({
+          title: "Assignment Updated",
+          description: `"${title}" has been updated successfully.`,
+        });
+        navigate(`/courses/${courseId}/assignments/${assignmentId}`);
+      } else {
+        await createAssignment(courseId, assignmentData);
+        toast({
+          title: "Assignment Created",
+          description: `"${title}" has been created successfully.`,
+        });
+        navigate(`/courses/${courseId}/assignments`);
+      }
+    } catch (error) {
+      console.error("Failed to create assignment:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
   };
 
   const handleCancel = () => {
-    navigate(`/courses/${courseId}/assignments`);
+    if (isEditMode && assignmentId) {
+      navigate(`/courses/${courseId}/assignments/${assignmentId}`);
+    } else {
+      navigate(`/courses/${courseId}/assignments`);
+    }
   };
 
+  // Generate time options in 15-minute intervals, plus 23:59
   const timeOptions = [];
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 15) {
@@ -77,10 +173,26 @@ const CreateAssignment = () => {
       timeOptions.push(`${hour}:${minute}`);
     }
   }
+  // Add 23:59 if not already present (the loop stops at 23:45)
+  if (!timeOptions.includes("23:59")) {
+    timeOptions.push("23:59");
+  }
+
+  if (loading) {
+    return (
+      <div className="p-8 max-w-3xl">
+        <div className="flex items-center justify-center py-16">
+          <p className="text-muted-foreground">Loading assignment...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-3xl">
-      <h1 className="text-2xl font-semibold text-foreground mb-8">Create Assignment</h1>
+      <h1 className="text-2xl font-semibold text-foreground mb-8">
+        {isEditMode ? "Edit Assignment" : "Create Assignment"}
+      </h1>
       
       <div className="space-y-6">
         {/* Assignment Name */}
@@ -352,10 +464,10 @@ const CreateAssignment = () => {
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button variant="outline" onClick={handleSave}>
+          <Button variant="outline" onClick={() => handleSave(false)}>
             Save
           </Button>
-          <Button onClick={handleSave}>
+          <Button onClick={() => handleSave(true)}>
             Save & Publish
           </Button>
         </div>
