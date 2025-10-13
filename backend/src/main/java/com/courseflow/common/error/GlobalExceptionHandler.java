@@ -4,6 +4,9 @@ import com.courseflow.common.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.mongodb.MongoException;
+import com.mongodb.MongoSecurityException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
@@ -115,15 +118,32 @@ public class GlobalExceptionHandler {
     }
     
     /**
+     * Handle MongoDB connection and authentication errors
+     */
+    @ExceptionHandler({MongoSecurityException.class, MongoException.class, DataAccessException.class})
+    public ResponseEntity<ApiResponse<Object>> handleMongoException(Exception ex) {
+        log.error("MongoDB error: {}", ex.getMessage(), ex);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("DATABASE_ERROR", "Database connection error"));
+    }
+    
+    /**
      * Handle all other exceptions
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleGenericException(Exception ex) {
         log.error("Unexpected error: {}", ex.getMessage(), ex);
+        
+        // Check if it's a MongoDB-related error that wasn't caught above
+        String errorMessage = ex.getMessage();
+        if (errorMessage != null && errorMessage.contains("MongoCredential")) {
+            return handleMongoException(ex);
+        }
+        
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("INTERNAL_ERROR", 
-                        "An unexpected error occurred. Please try again later."));
+                .body(ApiResponse.error("INTERNAL_ERROR", "An unexpected error occurred. Please try again later."));
     }
 }
 
