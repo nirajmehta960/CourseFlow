@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,123 +18,86 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { getMyCourses, Course } from "@/lib/courses-api";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
-const allCourses = [
-  {
-    id: "RS101",
-    name: "Rocket Propulsion",
-    code: "RS101",
-    instructor: "Dr. Sarah Chen",
-    department: "Aerospace Engineering",
-    enrolled: true,
-    term: "Fall 2024",
-    color: "#3B82F6",
-    favorite: true,
-    students: 45,
-    image: "https://images.unsplash.com/photo-1516849841032-87cbac4d88f7?w=400&h=200&fit=crop",
-  },
-  {
-    id: "CS201",
-    name: "Web Application Development",
-    code: "CS201",
-    instructor: "Prof. Michael Torres",
-    department: "Computer Science",
-    enrolled: true,
-    term: "Fall 2024",
-    color: "#10B981",
-    favorite: false,
-    students: 62,
-    image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=200&fit=crop",
-  },
-  {
-    id: "CH301",
-    name: "Inorganic Chemistry",
-    code: "CH301",
-    instructor: "Dr. Emily Watson",
-    department: "Chemistry",
-    enrolled: true,
-    term: "Fall 2024",
-    color: "#8B5CF6",
-    favorite: false,
-    students: 38,
-    image: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&h=200&fit=crop",
-  },
-  {
-    id: "PH401",
-    name: "Physical Chemistry",
-    code: "PH401",
-    instructor: "Prof. James Miller",
-    department: "Chemistry",
-    enrolled: true,
-    term: "Fall 2024",
-    color: "#F59E0B",
-    favorite: true,
-    students: 29,
-    image: "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=400&h=200&fit=crop",
-  },
-  {
-    id: "MA201",
-    name: "Linear Algebra",
-    code: "MA201",
-    instructor: "Dr. Robert Kim",
-    department: "Mathematics",
-    enrolled: false,
-    term: "Spring 2025",
-    color: "#6366F1",
-    favorite: false,
-    students: 55,
-    image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&h=200&fit=crop",
-  },
-  {
-    id: "PH201",
-    name: "Quantum Mechanics",
-    code: "PH201",
-    instructor: "Prof. Lisa Anderson",
-    department: "Physics",
-    enrolled: false,
-    term: "Spring 2025",
-    color: "#EC4899",
-    favorite: false,
-    students: 41,
-    image: "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=400&h=200&fit=crop",
-  },
-  {
-    id: "EE301",
-    name: "Digital Signal Processing",
-    code: "EE301",
-    instructor: "Dr. Alex Turner",
-    department: "Electrical Engineering",
-    enrolled: false,
-    term: "Spring 2025",
-    color: "#EF4444",
-    favorite: false,
-    students: 33,
-    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=200&fit=crop",
-  },
-  {
-    id: "CS301",
-    name: "Machine Learning",
-    code: "CS301",
-    instructor: "Prof. David Lee",
-    department: "Computer Science",
-    enrolled: false,
-    term: "Spring 2025",
-    color: "#14B8A6",
-    favorite: false,
-    students: 78,
-    image: "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=400&h=200&fit=crop",
-  },
-];
+// Generate a color based on course ID for consistent styling
+const generateColor = (id: string): string => {
+  const colors = [
+    "#3B82F6", "#10B981", "#8B5CF6", "#F59E0B", "#6366F1",
+    "#EC4899", "#EF4444", "#14B8A6", "#06B6D4", "#84CC16"
+  ];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
+// Default course image
+const defaultCourseImage = "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=200&fit=crop";
+
+interface CourseDisplay {
+  id: string;
+  name: string;
+  code: string;
+  instructor: string;
+  department: string;
+  enrolled: boolean;
+  term: string;
+  color: string;
+  favorite: boolean;
+  students: number;
+  image: string;
+}
 
 const Courses = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [termFilter, setTermFilter] = useState("all");
   const [enrollmentFilter, setEnrollmentFilter] = useState("all");
-  const [favorites, setFavorites] = useState<string[]>(
-    allCourses.filter((c) => c.favorite).map((c) => c.id)
-  );
+  const [courses, setCourses] = useState<CourseDisplay[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState<string[]>([]);
 
-  const terms = [...new Set(allCourses.map((c) => c.term))];
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setLoading(true);
+        const apiCourses = await getMyCourses();
+        
+        // Map API courses to display format
+        const mappedCourses: CourseDisplay[] = apiCourses.map((course: Course) => ({
+          id: course.id,
+          name: course.title,
+          code: course.code,
+          instructor: "Instructor", // TODO: Fetch instructor names from user IDs
+          department: "", // Not available in API
+          enrolled: true, // getMyCourses returns only enrolled courses
+          term: course.term,
+          color: generateColor(course.id),
+          favorite: false, // TODO: Implement favorites feature
+          students: 0, // TODO: Get from course people API if needed
+          image: defaultCourseImage,
+        }));
+        
+        setCourses(mappedCourses);
+      } catch (error) {
+        console.error("Failed to fetch courses:", error);
+        toast({
+          title: "Error",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
+  const terms = [...new Set(courses.map((c) => c.term))];
 
   const toggleFavorite = (courseId: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -146,7 +109,7 @@ const Courses = () => {
     );
   };
 
-  const filteredCourses = allCourses.filter((course) => {
+  const filteredCourses = courses.filter((course) => {
     const matchesSearch =
       course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       course.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -166,7 +129,7 @@ const Courses = () => {
     course,
     isEnrolled,
   }: {
-    course: (typeof allCourses)[0];
+    course: CourseDisplay;
     isEnrolled: boolean;
   }) => {
     const isFavorite = favorites.includes(course.id);
@@ -222,10 +185,12 @@ const Courses = () => {
                 <Calendar className="h-3.5 w-3.5" />
                 <span>{course.term}</span>
               </div>
-              <div className="flex items-center gap-1.5 text-white/90 text-xs">
-                <Users className="h-3.5 w-3.5" />
-                <span>{course.students}</span>
-              </div>
+              {course.students > 0 && (
+                <div className="flex items-center gap-1.5 text-white/90 text-xs">
+                  <Users className="h-3.5 w-3.5" />
+                  <span>{course.students}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -265,8 +230,12 @@ const Courses = () => {
               </DropdownMenu>
             </div>
 
-            <p className="text-xs text-muted-foreground mb-1">{course.instructor}</p>
-            <p className="text-xs text-muted-foreground/70 mb-3">{course.department}</p>
+            {course.instructor && (
+              <p className="text-xs text-muted-foreground mb-1">{course.instructor}</p>
+            )}
+            {course.department && (
+              <p className="text-xs text-muted-foreground/70 mb-3">{course.department}</p>
+            )}
 
             {/* Spacer to push button to bottom */}
             <div className="mt-auto">
@@ -307,6 +276,12 @@ const Courses = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+        {loading ? (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <p className="text-muted-foreground">Loading courses...</p>
+          </div>
+        ) : (
+          <>
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="relative flex-1 max-w-md">
@@ -401,9 +376,13 @@ const Courses = () => {
             </div>
             <p className="text-foreground font-medium mb-1">No courses found</p>
             <p className="text-sm text-muted-foreground">
-              Try adjusting your search or filters
+              {courses.length === 0 
+                ? "You are not enrolled in any courses yet"
+                : "Try adjusting your search or filters"}
             </p>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>
