@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,85 +41,32 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { getModules, updateModules, addModule, addModuleItem, Module, ModuleItem, ModuleItemType } from "@/lib/modules-api";
+import { getErrorMessage } from "@/lib/api";
 
-interface ModuleItem {
-  id: string;
-  title: string;
-  type: "page" | "discussion" | "assignment" | "quiz" | "video";
-  dueDate?: string;
-  points?: number;
-  published: boolean;
-  duration?: string;
-}
-
-interface Module {
-  id: string;
-  title: string;
-  items: ModuleItem[];
-  published: boolean;
-}
-
-const initialModules: Module[] = [
-  {
-    id: "1",
-    title: "Module 1: Project Management Introduction",
-    published: true,
-    items: [
-      { id: "1-1", title: "M1: Readings & Agenda", type: "page", published: true, duration: "15 min" },
-      { id: "1-2", title: "M1: Slides", type: "page", published: true, duration: "10 min" },
-      { id: "1-3", title: "M1: Video Lecture", type: "video", published: true, duration: "45 min" },
-      { id: "1-4", title: "M1 Discussion: Introduce Yourself", type: "discussion", published: true },
-    ],
-  },
-  {
-    id: "2",
-    title: "Module 2: Project Strategy and Selection",
-    published: true,
-    items: [
-      { id: "2-1", title: "M2: Readings & Agenda", type: "page", published: true, duration: "20 min" },
-      { id: "2-2", title: "M2: Slides", type: "page", published: true, duration: "15 min" },
-      { id: "2-3", title: "M2: Cases & Example", type: "page", published: true, duration: "30 min" },
-      { id: "2-4", title: "M2: Practice Problems and Solutions", type: "page", published: true, duration: "25 min" },
-      { id: "2-5", title: "Project Team Formation Report", type: "assignment", dueDate: "Jan 17", points: 30, published: true },
-    ],
-  },
-  {
-    id: "3",
-    title: "Module 3: The Project Manager",
-    published: false,
-    items: [
-      { id: "3-1", title: "M3: Readings & Agenda", type: "page", published: false, duration: "15 min" },
-      { id: "3-2", title: "M3: Video Lecture", type: "video", published: false, duration: "50 min" },
-      { id: "3-3", title: "M3: Discussion Forum", type: "discussion", published: false },
-      { id: "3-4", title: "M3: Quiz", type: "quiz", dueDate: "Jan 24", points: 25, published: false },
-    ],
-  },
-  {
-    id: "4",
-    title: "Module 4: Leadership and Team Building",
-    published: true,
-    items: [
-      { id: "4-1", title: "M4: Readings & Agenda", type: "page", published: true, duration: "20 min" },
-      { id: "4-2", title: "M4: Slides", type: "page", published: true, duration: "15 min" },
-      { id: "4-3", title: "M4: Case Study", type: "page", published: true, duration: "35 min" },
-      { id: "4-4", title: "Team Charter Assignment", type: "assignment", dueDate: "Jan 24", points: 50, published: true },
-    ],
-  },
-  {
-    id: "5",
-    title: "Module 5: Scope Management",
-    published: true,
-    items: [
-      { id: "5-1", title: "M5: Readings & Agenda", type: "page", published: true, duration: "15 min" },
-      { id: "5-2", title: "M5: Video Lecture", type: "video", published: true, duration: "55 min" },
-      { id: "5-3", title: "WBS Assignment", type: "assignment", dueDate: "Jan 31", points: 75, published: true },
-    ],
-  },
-];
+// Map backend types to frontend display types
+const mapItemType = (type: ModuleItemType): "page" | "discussion" | "assignment" | "quiz" | "video" => {
+  switch (type) {
+    case "VIDEO":
+      return "video";
+    case "QUIZ":
+      return "quiz";
+    case "ASSIGNMENT":
+      return "assignment";
+    case "DOC":
+      return "page";
+    case "LINK":
+      return "discussion";
+    default:
+      return "page";
+  }
+};
 
 const CourseModules = () => {
-  const [modules, setModules] = useState<Module[]>(initialModules);
-  const [expandedModules, setExpandedModules] = useState<string[]>(modules.map(m => m.id));
+  const { courseId } = useParams<{ courseId: string }>();
+  const [modules, setModules] = useState<Module[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -126,6 +74,69 @@ const CourseModules = () => {
   const [addLessonModuleId, setAddLessonModuleId] = useState<string | null>(null);
   const [newLessonTitle, setNewLessonTitle] = useState("");
   const isFaculty = true;
+
+  // Fetch modules on mount
+  useEffect(() => {
+    const fetchModules = async () => {
+      if (!courseId) return;
+      
+      try {
+        setLoading(true);
+        const response = await getModules(courseId);
+        // Sort modules by position
+        const sortedModules = [...response.modules].sort((a, b) => a.position - b.position);
+        setModules(sortedModules);
+        // Expand all modules by default
+        setExpandedModules(sortedModules.map(m => m.moduleId));
+      } catch (error) {
+        console.error("Failed to fetch modules:", error);
+        toast({
+          title: "Error",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchModules();
+  }, [courseId]);
+
+  // Helper function to save modules to backend
+  const saveModules = async (updatedModules: Module[]) => {
+    if (!courseId) return;
+    
+    try {
+      // Convert to backend format
+      const backendModules = updatedModules.map((module, index) => ({
+        moduleId: module.moduleId,
+        title: module.title,
+        position: index,
+        items: module.items.map((item) => ({
+          itemId: item.itemId,
+          type: item.type,
+          title: item.title,
+          url: item.url,
+          dueDate: item.dueDate,
+          published: item.published,
+        })),
+      }));
+
+      const response = await updateModules(courseId, { modules: backendModules });
+      // Sort modules by position
+      const sortedModules = [...response.modules].sort((a, b) => a.position - b.position);
+      setModules(sortedModules);
+    } catch (error) {
+      console.error("Failed to save modules:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) =>
@@ -135,30 +146,30 @@ const CourseModules = () => {
     );
   };
 
-  const getItemIcon = (type: string) => {
+  const getItemIcon = (type: ModuleItemType) => {
     switch (type) {
-      case "discussion":
+      case "LINK":
         return MessageSquare;
-      case "video":
+      case "VIDEO":
         return Video;
-      case "assignment":
+      case "ASSIGNMENT":
         return FileText;
-      case "quiz":
+      case "QUIZ":
         return HelpCircle;
       default:
         return BookOpen;
     }
   };
 
-  const getItemColor = (type: string) => {
+  const getItemColor = (type: ModuleItemType) => {
     switch (type) {
-      case "discussion":
+      case "LINK":
         return "bg-primary/10 text-primary";
-      case "video":
+      case "VIDEO":
         return "bg-success/10 text-success";
-      case "assignment":
+      case "ASSIGNMENT":
         return "bg-warning/10 text-warning";
-      case "quiz":
+      case "QUIZ":
         return "bg-destructive/10 text-destructive";
       default:
         return "bg-muted text-muted-foreground";
@@ -170,15 +181,20 @@ const CourseModules = () => {
     setEditingTitle(currentTitle);
   };
 
-  const handleSaveModuleTitle = (moduleId: string) => {
+  const handleSaveModuleTitle = async (moduleId: string) => {
     if (!editingTitle.trim()) return;
-    setModules((prev) =>
-      prev.map((m) =>
-        m.id === moduleId ? { ...m, title: editingTitle } : m
-      )
+    
+    const updatedModules = modules.map((m) =>
+      m.moduleId === moduleId ? { ...m, title: editingTitle } : m
     );
-    setEditingModuleId(null);
-    toast({ title: "Module updated", description: "Module name has been saved." });
+    
+    try {
+      await saveModules(updatedModules);
+      setEditingModuleId(null);
+      toast({ title: "Module updated", description: "Module name has been saved." });
+    } catch (error) {
+      // Error already handled in saveModules
+    }
   };
 
   const handleDeleteModule = (moduleId: string) => {
@@ -186,49 +202,65 @@ const CourseModules = () => {
     setDeleteDialogOpen(true);
   };
 
-  const confirmDeleteModule = () => {
+  const confirmDeleteModule = async () => {
     if (moduleToDelete) {
-      setModules((prev) => prev.filter((m) => m.id !== moduleToDelete));
-      toast({ title: "Module deleted", description: "The module has been removed." });
+      const updatedModules = modules.filter((m) => m.moduleId !== moduleToDelete);
+      try {
+        await saveModules(updatedModules);
+        toast({ title: "Module deleted", description: "The module has been removed." });
+      } catch (error) {
+        // Error already handled in saveModules
+      }
     }
     setDeleteDialogOpen(false);
     setModuleToDelete(null);
   };
 
-  const handleToggleModulePublish = (moduleId: string) => {
-    setModules((prev) =>
-      prev.map((m) =>
-        m.id === moduleId
-          ? {
-              ...m,
-              published: !m.published,
-              items: m.items.map((item) => ({ ...item, published: !m.published })),
-            }
-          : m
-      )
+  const handleToggleModulePublish = async (moduleId: string) => {
+    const module = modules.find((m) => m.moduleId === moduleId);
+    if (!module) return;
+    
+    const newPublishedState = !module.items.some(i => i.published);
+    
+    const updatedModules = modules.map((m) =>
+      m.moduleId === moduleId
+        ? {
+            ...m,
+            items: m.items.map((item) => ({ ...item, published: newPublishedState })),
+          }
+        : m
     );
-    const module = modules.find((m) => m.id === moduleId);
-    toast({
-      title: module?.published ? "Module unpublished" : "Module published",
-      description: module?.published
-        ? "Students can no longer see this module."
-        : "Students can now see this module.",
-    });
+    
+    try {
+      await saveModules(updatedModules);
+      toast({
+        title: newPublishedState ? "Module published" : "Module unpublished",
+        description: newPublishedState
+          ? "Students can now see this module."
+          : "Students can no longer see this module.",
+      });
+    } catch (error) {
+      // Error already handled in saveModules
+    }
   };
 
-  const handleToggleItemPublish = (moduleId: string, itemId: string) => {
-    setModules((prev) =>
-      prev.map((m) =>
-        m.id === moduleId
-          ? {
-              ...m,
-              items: m.items.map((item) =>
-                item.id === itemId ? { ...item, published: !item.published } : item
-              ),
-            }
-          : m
-      )
+  const handleToggleItemPublish = async (moduleId: string, itemId: string) => {
+    const updatedModules = modules.map((m) =>
+      m.moduleId === moduleId
+        ? {
+            ...m,
+            items: m.items.map((item) =>
+              item.itemId === itemId ? { ...item, published: !item.published } : item
+            ),
+          }
+        : m
     );
+    
+    try {
+      await saveModules(updatedModules);
+    } catch (error) {
+      // Error already handled in saveModules
+    }
   };
 
   const handleAddLesson = (moduleId: string) => {
@@ -236,61 +268,87 @@ const CourseModules = () => {
     setNewLessonTitle("");
   };
 
-  const handleSaveNewLesson = () => {
-    if (!newLessonTitle.trim() || !addLessonModuleId) return;
+  const handleSaveNewLesson = async () => {
+    if (!newLessonTitle.trim() || !addLessonModuleId || !courseId) return;
     
-    setModules((prev) =>
-      prev.map((m) =>
-        m.id === addLessonModuleId
-          ? {
-              ...m,
-              items: [
-                ...m.items,
-                {
-                  id: `${addLessonModuleId}-${Date.now()}`,
-                  title: newLessonTitle,
-                  type: "page" as const,
-                  published: false,
-                  duration: "10 min",
-                },
-              ],
-            }
-          : m
-      )
-    );
-    toast({ title: "Lesson added", description: "New lesson has been created." });
-    setAddLessonModuleId(null);
-    setNewLessonTitle("");
+    try {
+      await addModuleItem(courseId, addLessonModuleId, {
+        title: newLessonTitle,
+        type: "DOC",
+        published: false,
+      });
+      
+      // Refresh modules
+      const response = await getModules(courseId);
+      const sortedModules = [...response.modules].sort((a, b) => a.position - b.position);
+      setModules(sortedModules);
+      
+      toast({ title: "Lesson added", description: "New lesson has been created." });
+      setAddLessonModuleId(null);
+      setNewLessonTitle("");
+    } catch (error) {
+      console.error("Failed to add lesson:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleAddModule = () => {
-    const newId = `${Date.now()}`;
-    const newModule: Module = {
-      id: newId,
-      title: `New Module ${modules.length + 1}`,
-      published: false,
-      items: [],
-    };
-    setModules((prev) => [...prev, newModule]);
-    setExpandedModules((prev) => [...prev, newId]);
-    setEditingModuleId(newId);
-    setEditingTitle(newModule.title);
-    toast({ title: "Module created", description: "New module has been added." });
+  const handleAddModule = async () => {
+    if (!courseId) return;
+    
+    try {
+      const response = await addModule(courseId, {
+        title: `New Module ${modules.length + 1}`,
+        position: modules.length,
+      });
+      
+      // Sort modules by position
+      const sortedModules = [...response.modules].sort((a, b) => a.position - b.position);
+      setModules(sortedModules);
+      
+      const newModule = sortedModules[sortedModules.length - 1];
+      setExpandedModules((prev) => [...prev, newModule.moduleId]);
+      setEditingModuleId(newModule.moduleId);
+      setEditingTitle(newModule.title);
+      
+      toast({ title: "Module created", description: "New module has been added." });
+    } catch (error) {
+      console.error("Failed to add module:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
   };
 
-  const handlePublishAll = () => {
-    setModules((prev) =>
-      prev.map((m) => ({
-        ...m,
-        published: true,
-        items: m.items.map((item) => ({ ...item, published: true })),
-      }))
-    );
-    toast({ title: "All modules published", description: "All modules are now visible to students." });
+  const handlePublishAll = async () => {
+    const updatedModules = modules.map((m) => ({
+      ...m,
+      items: m.items.map((item) => ({ ...item, published: true })),
+    }));
+    
+    try {
+      await saveModules(updatedModules);
+      toast({ title: "All modules published", description: "All modules are now visible to students." });
+    } catch (error) {
+      // Error already handled in saveModules
+    }
   };
 
   const totalItems = modules.reduce((acc, m) => acc + m.items.length, 0);
-  const publishedModules = modules.filter(m => m.published).length;
+  const publishedModules = modules.filter(m => m.items.some(i => i.published)).length;
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Loading modules...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">
@@ -306,7 +364,7 @@ const CourseModules = () => {
               <Button variant="outline" size="sm" onClick={() => setExpandedModules([])}>
                 Collapse All
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setExpandedModules(modules.map(m => m.id))}>
+              <Button variant="outline" size="sm" onClick={() => setExpandedModules(modules.map(m => m.moduleId))}>
                 Expand All
               </Button>
               <DropdownMenu>
@@ -323,15 +381,17 @@ const CourseModules = () => {
                     Publish All Modules
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => {
-                      setModules((prev) =>
-                        prev.map((m) => ({
-                          ...m,
-                          published: false,
-                          items: m.items.map((item) => ({ ...item, published: false })),
-                        }))
-                      );
-                      toast({ title: "All modules unpublished" });
+                    onClick={async () => {
+                      const updatedModules = modules.map((m) => ({
+                        ...m,
+                        items: m.items.map((item) => ({ ...item, published: false })),
+                      }));
+                      try {
+                        await saveModules(updatedModules);
+                        toast({ title: "All modules unpublished" });
+                      } catch (error) {
+                        // Error already handled in saveModules
+                      }
                     }}
                   >
                     <Circle className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -388,17 +448,18 @@ const CourseModules = () => {
       {/* Modules List */}
       <div className="space-y-4">
         {modules.map((module, moduleIndex) => {
-          const isExpanded = expandedModules.includes(module.id);
-          const isEditing = editingModuleId === module.id;
-          const completedItems = module.items.filter(i => i.published).length;
-          const moduleProgress = module.items.length > 0 ? Math.round((completedItems / module.items.length) * 100) : 0;
+          const isExpanded = expandedModules.includes(module.moduleId);
+          const isEditing = editingModuleId === module.moduleId;
+          const publishedItems = module.items.filter(i => i.published).length;
+          const moduleProgress = module.items.length > 0 ? Math.round((publishedItems / module.items.length) * 100) : 0;
+          const hasPublishedItems = module.items.some(i => i.published);
 
           return (
             <Card 
-              key={module.id} 
+              key={module.moduleId} 
               className={cn(
                 "overflow-hidden transition-all",
-                !module.published && "opacity-70"
+                !hasPublishedItems && "opacity-70"
               )}
               style={{ animationDelay: `${moduleIndex * 50}ms` }}
             >
@@ -408,7 +469,7 @@ const CourseModules = () => {
                   <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab shrink-0" />
                 )}
                 <button
-                  onClick={() => toggleModule(module.id)}
+                  onClick={() => toggleModule(module.moduleId)}
                   className="p-1.5 hover:bg-muted rounded-lg transition-colors"
                 >
                   {isExpanded ? (
@@ -426,7 +487,7 @@ const CourseModules = () => {
                       className="h-9"
                       autoFocus
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveModuleTitle(module.id);
+                        if (e.key === "Enter") handleSaveModuleTitle(module.moduleId);
                         if (e.key === "Escape") setEditingModuleId(null);
                       }}
                     />
@@ -434,7 +495,7 @@ const CourseModules = () => {
                       size="icon"
                       variant="ghost"
                       className="h-9 w-9"
-                      onClick={() => handleSaveModuleTitle(module.id)}
+                      onClick={() => handleSaveModuleTitle(module.moduleId)}
                     >
                       <Check className="h-4 w-4 text-success" />
                     </Button>
@@ -454,12 +515,12 @@ const CourseModules = () => {
                       <Badge
                         className={cn(
                           "text-xs shrink-0",
-                          module.published 
+                          hasPublishedItems 
                             ? "bg-success/10 text-success border-success/20" 
                             : "bg-muted text-muted-foreground"
                         )}
                       >
-                        {module.published ? "Published" : "Draft"}
+                        {hasPublishedItems ? "Published" : "Draft"}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-4 mt-1">
@@ -478,9 +539,9 @@ const CourseModules = () => {
                       size="icon"
                       variant="ghost"
                       className="h-9 w-9"
-                      onClick={() => handleToggleModulePublish(module.id)}
+                      onClick={() => handleToggleModulePublish(module.moduleId)}
                     >
-                      {module.published ? (
+                      {hasPublishedItems ? (
                         <CheckCircle2 className="h-5 w-5 text-success" />
                       ) : (
                         <Circle className="h-5 w-5 text-muted-foreground" />
@@ -493,17 +554,17 @@ const CourseModules = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleEditModule(module.id, module.title)}>
+                        <DropdownMenuItem onClick={() => handleEditModule(module.moduleId, module.title)}>
                           <Pencil className="h-4 w-4 mr-2" />
                           Edit Module Name
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleAddLesson(module.id)}>
+                        <DropdownMenuItem onClick={() => handleAddLesson(module.moduleId)}>
                           <Plus className="h-4 w-4 mr-2" />
                           Add Lesson
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleToggleModulePublish(module.id)}>
-                          {module.published ? (
+                        <DropdownMenuItem onClick={() => handleToggleModulePublish(module.moduleId)}>
+                          {hasPublishedItems ? (
                             <>
                               <Circle className="h-4 w-4 mr-2" />
                               Unpublish Module
@@ -518,7 +579,7 @@ const CourseModules = () => {
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive"
-                          onClick={() => handleDeleteModule(module.id)}
+                          onClick={() => handleDeleteModule(module.moduleId)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete Module
@@ -537,8 +598,11 @@ const CourseModules = () => {
                     const colorClass = getItemColor(item.type);
                     return (
                       <div
-                        key={item.id}
-                        className="flex items-center gap-4 py-4 px-5 pl-16 hover:bg-muted/20 transition-colors group"
+                        key={item.itemId}
+                        className={cn(
+                          "flex items-center gap-4 py-4 px-5 pl-16 hover:bg-muted/20 transition-colors group",
+                          !item.published && "opacity-60"
+                        )}
                       >
                         {isFaculty && (
                           <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -551,19 +615,11 @@ const CourseModules = () => {
                             {item.title}
                           </span>
                           <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                            {item.duration && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {item.duration}
-                              </span>
-                            )}
                             {item.dueDate && (
                               <span className="flex items-center gap-1">
-                                Due {item.dueDate}
+                                <Clock className="h-3 w-3" />
+                                Due {new Date(item.dueDate).toLocaleDateString()}
                               </span>
-                            )}
-                            {item.points && (
-                              <span>{item.points} pts</span>
                             )}
                           </div>
                         </div>
@@ -573,7 +629,7 @@ const CourseModules = () => {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => handleToggleItemPublish(module.id, item.id)}
+                              onClick={() => handleToggleItemPublish(module.moduleId, item.itemId)}
                             >
                               {item.published ? (
                                 <CheckCircle2 className="h-4 w-4 text-success" />
@@ -595,7 +651,7 @@ const CourseModules = () => {
                   })}
 
                   {/* Add Lesson Row */}
-                  {addLessonModuleId === module.id && (
+                  {addLessonModuleId === module.moduleId && (
                     <div className="flex items-center gap-3 py-3 px-5 pl-16 bg-muted/20">
                       <Input
                         value={newLessonTitle}
@@ -618,9 +674,9 @@ const CourseModules = () => {
                   )}
 
                   {/* Add Lesson Button */}
-                  {isFaculty && addLessonModuleId !== module.id && (
+                  {isFaculty && addLessonModuleId !== module.moduleId && (
                     <button
-                      onClick={() => handleAddLesson(module.id)}
+                      onClick={() => handleAddLesson(module.moduleId)}
                       className="w-full flex items-center gap-3 py-3 px-5 pl-16 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
                     >
                       <Plus className="h-4 w-4" />
