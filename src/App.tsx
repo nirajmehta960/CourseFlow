@@ -38,6 +38,7 @@ import CourseDiscussions from "./pages/course/CourseDiscussions";
 
 import NotFound from "./pages/NotFound";
 import { QuizProvider } from "./contexts/QuizContext";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -48,7 +49,8 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
+          <AuthProvider>
+            <Routes>
             {/* Auth Routes */}
             <Route element={<AuthLayout />}>
               <Route path="/signin" element={<SignIn />} />
@@ -73,6 +75,7 @@ const App = () => (
                 <Route path="assignments" element={<CourseAssignments />} />
                 <Route path="assignments/new" element={<CreateAssignment />} />
                 <Route path="assignments/:assignmentId" element={<AssignmentDetail />} />
+                <Route path="assignments/:assignmentId/edit" element={<CreateAssignment />} />
                 <Route path="quizzes" element={<QuizList />} />
                 <Route path="quizzes/:quizId" element={<QuizDetails />} />
                 <Route path="quizzes/:quizId/edit" element={<QuizEditor />} />
@@ -85,7 +88,8 @@ const App = () => (
             </Route>
 
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QuizProvider>

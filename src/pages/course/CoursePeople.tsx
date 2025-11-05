@@ -23,6 +23,7 @@ import {
   Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 
 interface Person {
   id: string;
@@ -55,7 +56,7 @@ const CoursePeople = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("everyone");
-  const isFaculty = true;
+  const { isInstructor: isFaculty } = useCoursePermissions();
 
   const filteredPeople = people.filter((person) => {
     const matchesSearch = person.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

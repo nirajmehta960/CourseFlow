@@ -26,6 +26,7 @@ import { getModules, Module, ModuleItem, ModuleItemType } from "@/lib/modules-ap
 import { getErrorMessage } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
+import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 
 // Map backend item types to frontend display types
 const mapItemType = (type: ModuleItemType): "lesson" | "assignment" | "quiz" | "file" | "video" => {
@@ -75,7 +76,7 @@ const CourseHome = () => {
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
-  const isFaculty = true;
+  const { isInstructor: isFaculty } = useCoursePermissions();
 
   useEffect(() => {
     const fetchModules = async () => {
