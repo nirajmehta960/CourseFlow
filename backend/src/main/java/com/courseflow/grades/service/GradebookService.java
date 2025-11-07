@@ -176,6 +176,57 @@ public class GradebookService {
     }
     
     /**
+     * Update gradebook when a student submits a quiz.
+     * Quiz is automatically scored, so this method sets score and status to GRADED.
+     * 
+     * @param courseId The course ID
+     * @param studentId The student ID
+     * @param quizId The quiz ID
+     * @param score The score received (automatically calculated)
+     * @param points The maximum points possible
+     * @param title The quiz title
+     */
+    public void updateGradebookOnQuizSubmission(String courseId, String studentId, String quizId, 
+                                                  Double score, Double points, String title) {
+        Gradebook gradebook = getOrCreateGradebook(courseId, studentId);
+        
+        // Find existing item or create new one
+        Optional<Gradebook.GradeItem> existingItemOpt = gradebook.getItems().stream()
+                .filter(item -> item.getItemId().equals(quizId) && 
+                               item.getType() == Gradebook.ItemType.QUIZ)
+                .findFirst();
+        
+        Gradebook.GradeItem item;
+        if (existingItemOpt.isPresent()) {
+            item = existingItemOpt.get();
+        } else {
+            // Create new item if it doesn't exist
+            item = Gradebook.GradeItem.builder()
+                    .type(Gradebook.ItemType.QUIZ)
+                    .itemId(quizId)
+                    .title(title)
+                    .build();
+            gradebook.getItems().add(item);
+        }
+        
+        // Update item with quiz score (automatically graded)
+        item.setScore(score);
+        item.setPoints(points);
+        item.setStatus("GRADED");
+        item.setGradedAt(Instant.now());
+        if (item.getTitle() == null || item.getTitle().isBlank()) {
+            item.setTitle(title);
+        }
+        
+        // Recalculate totals
+        recalculateTotals(gradebook);
+        
+        gradebookRepository.save(gradebook);
+        log.debug("Updated gradebook for student {} in course {} on quiz submission", 
+                studentId, courseId);
+    }
+    
+    /**
      * Recalculate totals for a gradebook based on all items.
      * 
      * @param gradebook The gradebook to recalculate
