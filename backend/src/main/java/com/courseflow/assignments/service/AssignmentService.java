@@ -13,6 +13,7 @@ import com.courseflow.auth.service.AuthService;
 import com.courseflow.common.error.ApiException;
 import com.courseflow.courses.repository.CourseRepository;
 import com.courseflow.enrollments.service.EnrollmentService;
+import com.courseflow.grades.service.GradebookService;
 import com.courseflow.users.model.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class AssignmentService {
     private final CourseRepository courseRepository;
     private final EnrollmentService enrollmentService;
     private final AuthService authService;
+    private final GradebookService gradebookService;
     
     /**
      * Get all assignments for a course.
@@ -240,8 +242,8 @@ public class AssignmentService {
             log.info("Assignment submitted: assignment {} by student {} in course {}", 
                     assignmentId, currentUser.getId(), courseId);
             
-            // TODO: Update gradebook on submission (Day 6)
-            // gradebookService.updateGradebookOnSubmission(courseId, currentUser.getId(), assignmentId, "SUBMITTED");
+            // Update gradebook on submission
+            gradebookService.updateGradebookOnSubmission(courseId, currentUser.getId(), assignmentId, "SUBMITTED");
             
             return mapToSubmissionResponse(submission);
         } catch (DuplicateKeyException e) {
@@ -343,8 +345,9 @@ public class AssignmentService {
         log.info("Submission graded: submission {} for assignment {} by user {} in course {}", 
                 submissionId, assignmentId, currentUser.getId(), courseId);
         
-        // TODO: Update gradebook on grade (Day 6)
-        // gradebookService.updateGradebookOnGrade(courseId, submission.getStudentId(), assignmentId, request.getScore(), assignment.getPoints());
+        // Update gradebook on grade
+        gradebookService.updateGradebookOnGrade(courseId, submission.getStudentId(), assignmentId, 
+                request.getScore(), assignment.getPoints());
         
         return mapToSubmissionResponse(submission);
     }
