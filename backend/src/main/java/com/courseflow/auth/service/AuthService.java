@@ -9,15 +9,17 @@ import com.courseflow.security.JwtTokenProvider;
 import com.courseflow.security.SecurityUserDetails;
 import com.courseflow.users.model.User;
 import com.courseflow.users.repository.UserRepository;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -42,38 +44,45 @@ public class AuthService {
      * @return Auth response with access token and user info
      */
     public AuthResponse signUp(SignUpRequest request, HttpServletResponse response) {
-        // Check if user already exists
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new ApiException("EMAIL_ALREADY_EXISTS", "Email is already registered", 409);
+        try {
+            // Check if user already exists
+            if (userRepository.existsByEmail(request.getEmail())) {
+                throw new ApiException("EMAIL_ALREADY_EXISTS", "Email is already registered", 409);
+            }
+            
+            // Create new user
+            // Note: createdAt and updatedAt are automatically set by MongoDB auditing (@CreatedDate, @LastModifiedDate)
+            User user = User.builder()
+                    .name(request.getName())
+                    .email(request.getEmail())
+                    .passwordHash(passwordEncoder.encode(request.getPassword()))
+                    .role(request.getRole() != null ? request.getRole() : User.UserRole.STUDENT)
+                    .build();
+            
+            user = userRepository.save(user);
+            
+            // Generate tokens
+            String accessToken = tokenProvider.generateAccessToken(
+                    user.getId(), 
+                    user.getEmail(), 
+                    user.getRole().name()
+            );
+            
+            String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getEmail());
+            
+            // Set refresh token in httpOnly cookie
+            JwtAuthenticationFilter.setRefreshTokenCookie(response, refreshToken);
+            
+            log.info("User registered successfully: {}", user.getEmail());
+            
+            return buildAuthResponse(accessToken, user);
+        } catch (ApiException e) {
+            // Re-throw API exceptions as-is
+            throw e;
+        } catch (Exception e) {
+            log.error("Error during signup for email: {}", request.getEmail(), e);
+            throw new ApiException("SIGNUP_ERROR", "Failed to create user account", 500);
         }
-        
-        // Create new user
-        // Note: createdAt and updatedAt are automatically set by MongoDB auditing (@CreatedDate, @LastModifiedDate)
-        User user = User.builder()
-                .name(request.getName())
-                .email(request.getEmail())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .role(request.getRole() != null ? request.getRole() : User.UserRole.STUDENT)
-                .build();
-        
-        user = userRepository.save(user);
-        
-        // Generate tokens
-        String accessToken = tokenProvider.generateAccessToken(
-                user.getId(), 
-                user.getEmail(), 
-                user.getRole().name()
-        );
-        
-        String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getEmail());
-        
-        // Set refresh token in httpOnly cookie
-        Cookie refreshTokenCookie = JwtAuthenticationFilter.createRefreshTokenCookie(refreshToken);
-        response.addCookie(refreshTokenCookie);
-        
-        log.info("User registered successfully: {}", user.getEmail());
-        
-        return buildAuthResponse(accessToken, user);
     }
     
     /**
@@ -110,8 +119,7 @@ public class AuthService {
             String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getEmail());
             
             // Set refresh token in httpOnly cookie
-            Cookie refreshTokenCookie = JwtAuthenticationFilter.createRefreshTokenCookie(refreshToken);
-            response.addCookie(refreshTokenCookie);
+            JwtAuthenticationFilter.setRefreshTokenCookie(response, refreshToken);
             
             log.info("User signed in successfully: {}", user.getEmail());
             
@@ -119,6 +127,22 @@ public class AuthService {
             
         } catch (BadCredentialsException e) {
             throw new ApiException("INVALID_CREDENTIALS", "Invalid email or password", 401);
+        } catch (InternalAuthenticationServiceException e) {
+            // Unwrap the underlying exception
+            Throwable cause = e.getCause();
+            if (cause instanceof UsernameNotFoundException) {
+                throw new ApiException("INVALID_CREDENTIALS", "Invalid email or password", 401);
+            }
+            log.error("Authentication service error for email: {}", request.getEmail(), e);
+            throw new ApiException("INVALID_CREDENTIALS", "Invalid email or password", 401);
+        } catch (AuthenticationException e) {
+            throw new ApiException("INVALID_CREDENTIALS", "Invalid email or password", 401);
+        } catch (ApiException e) {
+            // Re-throw API exceptions as-is
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error during sign in for email: {}", request.getEmail(), e);
+            throw new ApiException("SIGNIN_ERROR", "Failed to sign in", 500);
         }
     }
     
@@ -153,10 +177,7 @@ public class AuthService {
         String newRefreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getEmail());
         
         // Set new refresh token in httpOnly cookie
-        Cookie refreshTokenCookie = JwtAuthenticationFilter.createRefreshTokenCookie(newRefreshToken);
-        response.addCookie(refreshTokenCookie);
-        
-        log.debug("Token refreshed for user: {}", user.getEmail());
+        JwtAuthenticationFilter.setRefreshTokenCookie(response, newRefreshToken);
         
         return buildAuthResponse(accessToken, user);
     }
@@ -167,9 +188,7 @@ public class AuthService {
      * @param response HTTP response to clear refresh token cookie
      */
     public void logout(HttpServletResponse response) {
-        Cookie cookie = JwtAuthenticationFilter.deleteRefreshTokenCookie();
-        response.addCookie(cookie);
-        log.debug("User logged out");
+        JwtAuthenticationFilter.deleteRefreshTokenCookie(response);
     }
     
     /**
@@ -184,7 +203,13 @@ public class AuthService {
             throw new ApiException("UNAUTHORIZED", "User not authenticated", 401);
         }
         
-        SecurityUserDetails userDetails = (SecurityUserDetails) authentication.getPrincipal();
+        // Handle anonymous authentication (principal is a String)
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof SecurityUserDetails)) {
+            throw new ApiException("UNAUTHORIZED", "User not authenticated", 401);
+        }
+        
+        SecurityUserDetails userDetails = (SecurityUserDetails) principal;
         String userId = userDetails.getId();
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException("USER_NOT_FOUND", "User not found"));
