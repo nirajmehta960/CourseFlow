@@ -1,105 +1,83 @@
-# CourseFlow
+# CourseFlow - Learning Management System
 
-A modern Learning Management System (LMS) built with React, TypeScript, and Vite.
+A full-stack Learning Management System (LMS) built with React (frontend) and Spring Boot (backend).
 
-## Features
+## 📁 Project Structure (Monorepo)
 
-- **Interactive Courses** - Access and manage your courses seamlessly
-- **Assignments** - Create, submit, and track assignments
-- **Quizzes** - Take quizzes and track your progress
-- **Grades** - Real-time grade tracking and analytics
-- **Discussions** - Collaborate with peers and instructors
-- **Calendar** - Manage your schedule and deadlines
-- **Modern UI** - Built with shadcn-ui and Tailwind CSS
+This is a monorepo containing both frontend and backend code in the same repository:
 
-## Technologies
-
-This project is built with:
-
-- **Vite** - Fast build tool and development server
-- **React** - UI library
-- **TypeScript** - Type-safe JavaScript
-- **shadcn-ui** - High-quality component library
-- **Tailwind CSS** - Utility-first CSS framework
-- **React Router** - Client-side routing
-- **TanStack Query** - Data fetching and caching
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js (v18 or higher recommended)
-- npm, yarn, or bun
-
-### Installation
-
-1. Clone the repository:
-```sh
-git clone https://github.com/nirajmehta960/CourseFlow.git
-cd CourseFlow
+```
+CourseFlow/
+├── frontend/          # React + TypeScript + Vite frontend
+│   ├── src/           # Source code
+│   ├── public/        # Static assets
+│   ├── package.json   # Frontend dependencies
+│   └── .env.example   # Frontend environment variables template
+│
+├── backend/           # Spring Boot + Java backend
+│   ├── src/           # Java source code
+│   ├── pom.xml        # Maven dependencies
+│   └── .env.example   # Backend environment variables template
+│
+└── README.md          # This file
 ```
 
-2. Install dependencies:
-```sh
+## 🚀 Quick Start
+
+### Frontend (React + Vite)
+
+```bash
+cd frontend
 npm install
-# or
-yarn install
-# or
-bun install
+npm run dev          # Development server (http://localhost:5173)
+npm run build        # Production build
 ```
 
-3. Start the development server:
-```sh
-npm run dev
-# or
-yarn dev
-# or
-bun dev
+### Backend (Spring Boot)
+
+```bash
+cd backend
+# Set up .env file from .env.example
+mvn spring-boot:run  # Or use: ./start.sh
 ```
 
-The application will be available at `http://localhost:8080`
+## 🔧 Environment Variables
 
-### Building for Production
+### Frontend
+Copy `frontend/.env.example` to `frontend/.env` and set:
+- `VITE_API_BASE_URL` - Backend API URL (default: http://localhost:4000/api)
 
-```sh
-npm run build
-# or
-yarn build
-# or
-bun run build
-```
+### Backend
+Copy `backend/.env.example` to `backend/.env` and set:
+- `MONGODB_URI` - MongoDB connection string (required for production)
 
-The production build will be in the `dist` directory.
+All other variables have defaults in `backend/src/main/resources/application.yml`.
 
-### Preview Production Build
+## 📦 Deployment
 
-```sh
-npm run preview
-# or
-yarn preview
-# or
-bun run preview
-```
+This monorepo structure supports deploying frontend and backend separately:
 
-## Project Structure
+- **Frontend**: Deploy from `frontend/` directory (e.g., Vercel, Netlify)
+- **Backend**: Deploy from `backend/` directory (e.g., AWS Elastic Beanstalk, Render)
 
-```
-src/
-├── components/     # React components
-│   ├── layout/    # Layout components
-│   ├── ui/        # UI components (shadcn)
-│   └── quiz/      # Quiz-related components
-├── contexts/      # React contexts
-├── hooks/         # Custom React hooks
-├── pages/         # Page components
-├── types/         # TypeScript type definitions
-└── lib/           # Utility functions
-```
+Most platforms allow you to specify the root directory for deployment, making it easy to deploy both from the same repository.
 
-## License
+## 🛠️ Technology Stack
+
+### Frontend
+- React 18 + TypeScript
+- Vite
+- Tailwind CSS
+- React Router
+- TanStack Query
+
+### Backend
+- Spring Boot 3.2.0
+- Java 17/21
+- MongoDB
+- Spring Security + JWT
+- Maven
+
+## 📝 License
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.

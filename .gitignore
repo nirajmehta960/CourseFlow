@@ -1,8 +1,55 @@
-# Environment variables (do not commit)
+# CourseFlow Monorepo - Root Level .gitignore
+# This repository contains both frontend and backend code
+
+# Shared: IDE/Editor folders
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Shared: Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Shared: OS files
+.DS_Store
+Thumbs.db
+
+# Frontend build artifacts (if built at root - should be in frontend/dist)
+dist/
+build/
+.next/
+out/
+
+# Dependencies (should be in frontend/node_modules and backend/target)
+node_modules/
+.pnp
+.pnp.js
+
+# Environment files (frontend/.env and backend/.env)
 .env
 .env.local
+.env.*.local
+*.env
+!.env.example
 
-# Temporary/deployment scripts
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Deployment documentation (keep README.md)
 *.md
 !README.md
-!backend/README.md

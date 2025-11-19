@@ -25,6 +25,7 @@ buildNumber.properties
 
 # Log files
 *.log
+logs/
 
 # Package Files
 *.jar
@@ -44,7 +45,20 @@ spring-boot-*.log
 application-*.properties
 !application.yml
 
-# Environment variables
+# Environment variables (CRITICAL - do not commit)
 .env
 .env.local
+.env.*.local
+*.env
+!.env.example
 
+# Secrets and credentials (additional safety)
+*secret*
+*password*
+*key*
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.truststore

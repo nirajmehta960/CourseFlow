@@ -1,13 +1,13 @@
 spring:
   application:
     name: courseflow-backend
-  
+
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/CourseFlow}
       database: CourseFlow
       # Explicitly set database name to ensure consistency
-  
+
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
@@ -53,7 +53,7 @@ spring:
   config:
     activate:
       on-profile: dev
-  
+
   data:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017/CourseFlow}
@@ -70,7 +70,7 @@ spring:
   config:
     activate:
       on-profile: prod
-  
+
   data:
     mongodb:
       uri: ${MONGODB_URI}
@@ -79,4 +79,3 @@ logging:
   level:
     root: WARN
     com.courseflow: INFO
-
