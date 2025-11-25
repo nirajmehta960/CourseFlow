@@ -1,0 +1,18 @@
+# Files to ignore when deploying to Elastic Beanstalk
+target/
+.idea/
+.vscode/
+*.iml
+.env
+.env.local
+*.log
+.DS_Store
+node_modules/
+.git/
+.gitignore
+start.sh
+run.sh
+commit-*.sh
+*.md
+!README.md
+

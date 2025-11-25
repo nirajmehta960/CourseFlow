@@ -1,13 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Background circle with CourseFlow primary blue -->
-  <circle cx="16" cy="16" r="16" fill="#3B82F6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36">
+  <!-- 100% exact match: Logo component h-9 w-9 = 36px × 36px, rounded-lg = 8px radius, bg-primary = hsl(220, 70%, 50%) -->
+  <rect width="36" height="36" rx="8" ry="8" fill="hsl(220, 70%, 50%)"/>
   
-  <!-- Simplified graduation cap icon -->
-  <g transform="translate(16, 14)">
-    <!-- Cap top (square mortarboard style) -->
-    <path d="M -10 -6 L 0 -10 L 10 -6 L 10 -2 L 0 2 L -10 -2 Z" fill="white"/>
-    <!-- Tassel -->
-    <line x1="7" y1="-6" x2="7" y2="1" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-    <circle cx="7" cy="1" r="1.5" fill="white"/>
+  <!-- 100% exact match: GraduationCap h-5 w-5 = 20px × 20px, CENTERED in the blue square -->
+  <!-- lucide-react GraduationCap viewBox: 0 0 24 24, center is at (12, 12) -->
+  <!-- To center properly: translate icon center to origin, scale, then translate to container center -->
+  <!-- Transform order: translate(18,18) scale(0.8333) translate(-12,-12) -->
+  <!-- This moves icon center to origin, scales around center, then moves to container center (18,18) -->
+  <g transform="translate(18, 18) scale(0.8333) translate(-12, -12)" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/>
+    <path d="M22 10v6"/>
+    <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>
   </g>
 </svg>
