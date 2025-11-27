@@ -38,6 +38,9 @@ public class MongoConfig {
      * Even if the connection URI includes a database name, we override it here
      * to ensure we always use 'CourseFlow' database. This prevents connection
      * to wrong database if URI has a different name.
+     * 
+     * Note: Connection is lazy - actual connection happens on first use,
+     * which allows DNS SRV lookups to work properly.
      */
     @Bean
     public MongoDatabaseFactory mongoDatabaseFactory() {

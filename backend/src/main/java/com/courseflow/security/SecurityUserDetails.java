@@ -6,8 +6,10 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
+import com.courseflow.users.model.User;
 
 /**
  * Spring Security UserDetails implementation for JWT authentication.
@@ -24,9 +26,18 @@ public class SecurityUserDetails implements UserDetails {
         this.id = user.getId();
         this.email = user.getEmail();
         this.password = user.getPasswordHash();
-        this.authorities = Collections.singletonList(
-                new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
-        );
+        
+        // Convert user roles to Spring Security authorities
+        List<GrantedAuthority> authoritiesList = new ArrayList<>();
+        if (user.getRoles() != null) {
+            for (User.UserRole role : user.getRoles()) {
+                authoritiesList.add(new SimpleGrantedAuthority("ROLE_" + role.name()));
+            }
+        } else {
+            // Fallback to STUDENT if roles is null
+            authoritiesList.add(new SimpleGrantedAuthority("ROLE_STUDENT"));
+        }
+        this.authorities = authoritiesList;
     }
     
     @Override

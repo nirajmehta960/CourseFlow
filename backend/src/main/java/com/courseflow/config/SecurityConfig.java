@@ -42,12 +42,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Permit all OPTIONS requests for CORS preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        // Public auth endpoints (signup, login, refresh, logout)
+                        // Public auth endpoints (signup, signin, refresh, signout)
                         .requestMatchers(
                                 "/auth/signup",
-                                "/auth/login",
+                                "/auth/signin",
                                 "/auth/refresh",
-                                "/auth/logout"
+                                "/auth/signout"
                         ).permitAll()
                         // Swagger/OpenAPI documentation endpoints (public access)
                         .requestMatchers(

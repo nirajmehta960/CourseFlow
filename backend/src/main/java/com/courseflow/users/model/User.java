@@ -11,6 +11,8 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * User entity representing a user in the system.
@@ -34,7 +36,7 @@ public class User {
     private String passwordHash;
     
     @Builder.Default
-    private UserRole role = UserRole.STUDENT;
+    private List<UserRole> roles = new ArrayList<>(List.of(UserRole.STUDENT));
     
     @CreatedDate
     private Instant createdAt;
@@ -48,7 +50,26 @@ public class User {
     public enum UserRole {
         STUDENT,
         INSTRUCTOR,
+        TA,
         ADMIN
+    }
+    
+    /**
+     * Get the primary role (first role in the list, or STUDENT if empty).
+     * Useful for backward compatibility and simple role checks.
+     */
+    public UserRole getPrimaryRole() {
+        if (roles == null || roles.isEmpty()) {
+            return UserRole.STUDENT;
+        }
+        return roles.get(0);
+    }
+    
+    /**
+     * Check if user has a specific role.
+     */
+    public boolean hasRole(UserRole role) {
+        return roles != null && roles.contains(role);
     }
 }
 
