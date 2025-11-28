@@ -35,6 +35,22 @@ public class Course {
     
     private String section;
     
+    private String description;
+    
+    private String coverImageUrl;
+    
+    /**
+     * Course status: DRAFT or PUBLISHED
+     */
+    @Builder.Default
+    private CourseStatus status = CourseStatus.DRAFT;
+    
+    /**
+     * User ID who created this course
+     */
+    @Indexed
+    private String createdBy;
+    
     /**
      * Array of user IDs who are instructors for this course.
      * Indexed for efficient querying.
@@ -44,12 +60,20 @@ public class Course {
     private List<String> instructorIds = new ArrayList<>();
     
     @Builder.Default
-    private Boolean published = false;
+    private Boolean published = false; // Deprecated: use status instead, kept for backward compatibility
     
     @CreatedDate
     private Instant createdAt;
     
     @LastModifiedDate
     private Instant updatedAt;
+    
+    /**
+     * Course status enum
+     */
+    public enum CourseStatus {
+        DRAFT,
+        PUBLISHED
+    }
 }
 

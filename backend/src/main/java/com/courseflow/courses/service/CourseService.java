@@ -8,6 +8,7 @@ import com.courseflow.courses.dto.CourseResponse;
 import com.courseflow.courses.model.Course;
 import com.courseflow.courses.repository.CourseRepository;
 import com.courseflow.enrollments.model.Enrollment;
+import com.courseflow.enrollments.repository.EnrollmentRepository;
 import com.courseflow.enrollments.service.EnrollmentService;
 import com.courseflow.users.model.User;
 import com.courseflow.users.repository.UserRepository;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -42,8 +44,8 @@ public class CourseService {
         User currentUser = authService.getCurrentUser();
         
         // Check if user has permission (INSTRUCTOR or ADMIN)
-        if (currentUser.getRole() != User.UserRole.INSTRUCTOR && 
-            currentUser.getRole() != User.UserRole.ADMIN) {
+        if (!currentUser.hasRole(User.UserRole.INSTRUCTOR) && 
+            !currentUser.hasRole(User.UserRole.ADMIN)) {
             throw new ApiException("INSUFFICIENT_PERMISSIONS", 
                     "Only instructors and admins can create courses", 403);
         }
@@ -55,13 +57,26 @@ public class CourseService {
                     "A course with this code, term, and section already exists", 409);
         }
         
-        // Create course - published by default so students can see and enroll
+        // Determine status - use status field if provided, otherwise use published field for backward compatibility
+        Course.CourseStatus courseStatus = Course.CourseStatus.DRAFT;
+        if (request.getStatus() != null) {
+            courseStatus = Course.CourseStatus.valueOf(request.getStatus().name());
+        } else if (request.getPublished() != null && request.getPublished()) {
+            courseStatus = Course.CourseStatus.PUBLISHED;
+        }
+        
+        // Create course
         Course course = Course.builder()
+                .id(UUID.randomUUID().toString())
                 .title(request.getTitle())
                 .code(request.getCode())
                 .term(request.getTerm())
                 .section(request.getSection())
-                .published(request.getPublished() != null ? request.getPublished() : true)
+                .description(request.getDescription())
+                .coverImageUrl(request.getCoverImageUrl())
+                .status(courseStatus)
+                .createdBy(currentUser.getId())
+                .published(courseStatus == Course.CourseStatus.PUBLISHED) // Keep for backward compatibility
                 .instructorIds(new ArrayList<>())
                 .build();
         
@@ -150,7 +165,7 @@ public class CourseService {
         
         // Check permission: must be instructor/TA of the course or admin
         boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
-        boolean isAdmin = currentUser.getRole() == User.UserRole.ADMIN;
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
         
         if (!isInstructor && !isAdmin) {
             throw new ApiException("INSUFFICIENT_PERMISSIONS", 
@@ -173,8 +188,18 @@ public class CourseService {
         course.setCode(request.getCode());
         course.setTerm(request.getTerm());
         course.setSection(request.getSection());
-        if (request.getPublished() != null) {
+        if (request.getDescription() != null) {
+            course.setDescription(request.getDescription());
+        }
+        if (request.getCoverImageUrl() != null) {
+            course.setCoverImageUrl(request.getCoverImageUrl());
+        }
+        if (request.getStatus() != null) {
+            course.setStatus(Course.CourseStatus.valueOf(request.getStatus().name()));
+            course.setPublished(course.getStatus() == Course.CourseStatus.PUBLISHED); // Keep for backward compatibility
+        } else if (request.getPublished() != null) {
             course.setPublished(request.getPublished());
+            course.setStatus(request.getPublished() ? Course.CourseStatus.PUBLISHED : Course.CourseStatus.DRAFT);
         }
         
         course = courseRepository.save(course);
@@ -209,6 +234,7 @@ public class CourseService {
                     }
                     
                     return CoursePeopleResponse.PersonInfo.builder()
+                            .enrollmentId(enrollment.getId())
                             .userId(user.getId())
                             .name(user.getName())
                             .email(user.getEmail())
@@ -236,7 +262,7 @@ public class CourseService {
         
         // Check permission: must be instructor/TA of the course or admin
         boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
-        boolean isAdmin = currentUser.getRole() == User.UserRole.ADMIN;
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
         
         if (!isInstructor && !isAdmin) {
             throw new ApiException("INSUFFICIENT_PERMISSIONS", 
@@ -276,6 +302,108 @@ public class CourseService {
     }
     
     /**
+     * Enroll a user by email. Creates invitation if user doesn't exist.
+     * Only instructors/admins can enroll users.
+     * 
+     * @param courseId Course ID
+     * @param email User email
+     * @param role Course role for the enrollment
+     * @return Enrollment information
+     */
+    public Enrollment enrollByEmail(String courseId, String email, Enrollment.CourseRole role) {
+        User currentUser = authService.getCurrentUser();
+        
+        // Check permission: must be instructor/TA of the course or admin
+        boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
+        
+        if (!isInstructor && !isAdmin) {
+            throw new ApiException("INSUFFICIENT_PERMISSIONS", 
+                    "Only instructors and admins can enroll users", 403);
+        }
+        
+        // Find user by email
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ApiException("USER_NOT_FOUND", 
+                        "User with email " + email + " not found. User must sign up first.", 404));
+        
+        // Check if enrollment already exists
+        if (enrollmentService.checkEnrollment(courseId, user.getId())) {
+            throw new ApiException("ENROLLMENT_ALREADY_EXISTS", 
+                    "User is already enrolled in this course", 409);
+        }
+        
+        // Enroll the user
+        return enrollmentService.enrollUser(courseId, user.getId(), role != null ? role : Enrollment.CourseRole.STUDENT);
+    }
+    
+    /**
+     * Update an enrollment (change role or remove).
+     * Only instructors/admins can update enrollments.
+     * 
+     * @param courseId Course ID
+     * @param enrollmentId Enrollment ID
+     * @param request Update request
+     * @return Updated enrollment
+     */
+    public Enrollment updateEnrollment(String courseId, String enrollmentId, 
+                                       com.courseflow.courses.dto.UpdateEnrollmentRequest request) {
+        User currentUser = authService.getCurrentUser();
+        
+        // Check permission: must be instructor/TA of the course or admin
+        boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
+        
+        if (!isInstructor && !isAdmin) {
+            throw new ApiException("INSUFFICIENT_PERMISSIONS", 
+                    "Only instructors and admins can update enrollments", 403);
+        }
+        
+        // Find enrollment
+        Enrollment enrollment = enrollmentService.getCourseEnrollments(courseId).stream()
+                .filter(e -> e.getId().equals(enrollmentId))
+                .findFirst()
+                .orElseThrow(() -> new ApiException("ENROLLMENT_NOT_FOUND", "Enrollment not found", 404));
+        
+        // Update role if provided
+        if (request.getRole() != null) {
+            enrollment.setCourseRole(request.getRole());
+        }
+        
+        // Update status if provided
+        if (request.getStatus() != null) {
+            enrollment.setStatus(request.getStatus());
+        }
+        
+        // Save updated enrollment
+        return enrollmentService.updateEnrollment(enrollment);
+    }
+    
+    /**
+     * Delete a course. Only admin or course owner can delete.
+     * 
+     * @param courseId Course ID
+     */
+    public void deleteCourse(String courseId) {
+        User currentUser = authService.getCurrentUser();
+        
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new ApiException("COURSE_NOT_FOUND", "Course not found", 404));
+        
+        // Check permission: must be admin or course owner (createdBy)
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
+        boolean isOwner = course.getCreatedBy() != null && course.getCreatedBy().equals(currentUser.getId());
+        
+        if (!isAdmin && !isOwner) {
+            throw new ApiException("INSUFFICIENT_PERMISSIONS", 
+                    "Only admins or course owners can delete courses", 403);
+        }
+        
+        courseRepository.delete(course);
+        log.info("Course deleted: {} by user {}", courseId, currentUser.getId());
+    }
+    
+    /**
      * Map Course entity to CourseResponse DTO.
      */
     private CourseResponse mapToResponse(Course course) {
@@ -285,6 +413,12 @@ public class CourseService {
                 .code(course.getCode())
                 .term(course.getTerm())
                 .section(course.getSection())
+                .description(course.getDescription())
+                .coverImageUrl(course.getCoverImageUrl())
+                .status(course.getStatus() != null ? 
+                        CourseResponse.CourseStatus.valueOf(course.getStatus().name()) : 
+                        CourseResponse.CourseStatus.DRAFT)
+                .createdBy(course.getCreatedBy())
                 .instructorIds(course.getInstructorIds())
                 .published(course.getPublished())
                 .createdAt(course.getCreatedAt())

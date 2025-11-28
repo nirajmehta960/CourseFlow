@@ -3,7 +3,9 @@ package com.courseflow.courses.controller;
 import com.courseflow.courses.dto.CoursePeopleResponse;
 import com.courseflow.courses.dto.CourseRequest;
 import com.courseflow.courses.dto.CourseResponse;
+import com.courseflow.courses.dto.EnrollByEmailRequest;
 import com.courseflow.courses.dto.EnrollStudentRequest;
+import com.courseflow.courses.dto.UpdateEnrollmentRequest;
 import com.courseflow.courses.service.CourseService;
 import com.courseflow.common.dto.ApiResponse;
 import com.courseflow.enrollments.model.Enrollment;
@@ -75,12 +77,30 @@ public class CourseController {
     }
     
     @PostMapping("/{courseId}/enroll")
-    @Operation(summary = "Enroll a student", description = "Enroll a student in a course. Only instructors and admins can enroll students.")
-    public ResponseEntity<ApiResponse<Enrollment>> enrollStudent(
+    @Operation(summary = "Enroll a user by email", description = "Enroll a user in a course by email. Only instructors and admins can enroll users.")
+    public ResponseEntity<ApiResponse<Enrollment>> enrollByEmail(
             @PathVariable String courseId,
-            @Valid @RequestBody EnrollStudentRequest request) {
-        Enrollment enrollment = courseService.enrollStudent(courseId, request.getUserId());
-        return ResponseEntity.ok(ApiResponse.success(enrollment, "Student enrolled successfully"));
+            @Valid @RequestBody EnrollByEmailRequest request) {
+        Enrollment enrollment = courseService.enrollByEmail(courseId, request.getEmail(), request.getRole());
+        return ResponseEntity.ok(ApiResponse.success(enrollment, "User enrolled successfully"));
+    }
+    
+    @PatchMapping("/{courseId}/people/{enrollmentId}")
+    @Operation(summary = "Update enrollment", description = "Update an enrollment (change role or remove). Only instructors and admins can update enrollments.")
+    public ResponseEntity<ApiResponse<Enrollment>> updateEnrollment(
+            @PathVariable String courseId,
+            @PathVariable String enrollmentId,
+            @Valid @RequestBody UpdateEnrollmentRequest request) {
+        Enrollment enrollment = courseService.updateEnrollment(courseId, enrollmentId, request);
+        return ResponseEntity.ok(ApiResponse.success(enrollment, "Enrollment updated successfully"));
+    }
+    
+    @DeleteMapping("/{courseId}")
+    @Operation(summary = "Delete a course", description = "Delete a course. Only admins or course owners can delete courses.")
+    public ResponseEntity<ApiResponse<Void>> deleteCourse(
+            @PathVariable String courseId) {
+        courseService.deleteCourse(courseId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Course deleted successfully"));
     }
     
     @PostMapping("/{courseId}/self-enroll")

@@ -79,7 +79,7 @@ public class ModuleService {
         
         // Check permission: must be instructor/TA of the course or admin
         boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
-        boolean isAdmin = currentUser.getRole() == User.UserRole.ADMIN;
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
         
         if (!isInstructor && !isAdmin) {
             throw new ApiException("INSUFFICIENT_PERMISSIONS", 
@@ -142,7 +142,7 @@ public class ModuleService {
         
         // Check permission: must be instructor/TA of the course or admin
         boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
-        boolean isAdmin = currentUser.getRole() == User.UserRole.ADMIN;
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
         
         if (!isInstructor && !isAdmin) {
             throw new ApiException("INSUFFICIENT_PERMISSIONS", 
@@ -194,7 +194,7 @@ public class ModuleService {
         
         // Check permission: must be instructor/TA of the course or admin
         boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
-        boolean isAdmin = currentUser.getRole() == User.UserRole.ADMIN;
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
         
         if (!isInstructor && !isAdmin) {
             throw new ApiException("INSUFFICIENT_PERMISSIONS", 

@@ -22,9 +22,21 @@ public class CourseResponse {
     private String code;
     private String term;
     private String section;
+    private String description;
+    private String coverImageUrl;
+    private CourseStatus status;
+    private String createdBy;
     private List<String> instructorIds;
-    private Boolean published;
+    private Boolean published; // Deprecated: use status instead
     private Instant createdAt;
     private Instant updatedAt;
+    
+    /**
+     * Course status enum
+     */
+    public enum CourseStatus {
+        DRAFT,
+        PUBLISHED
+    }
 }
 

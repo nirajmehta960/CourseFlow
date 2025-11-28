@@ -32,6 +32,20 @@ public class CourseRequest {
     @Size(max = 20, message = "Section must be at most 20 characters")
     private String section;
     
-    private Boolean published;
+    private String description;
+    
+    private String coverImageUrl;
+    
+    private CourseStatus status;
+    
+    private Boolean published; // Deprecated: use status instead
+    
+    /**
+     * Course status enum
+     */
+    public enum CourseStatus {
+        DRAFT,
+        PUBLISHED
+    }
 }
 

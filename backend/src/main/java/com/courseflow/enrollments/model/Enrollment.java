@@ -60,6 +60,7 @@ public class Enrollment {
      */
     public enum EnrollmentStatus {
         ACTIVE,
+        INVITED,
         DROPPED
     }
 }

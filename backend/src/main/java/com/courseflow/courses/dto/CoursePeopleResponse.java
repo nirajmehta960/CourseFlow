@@ -24,6 +24,7 @@ public class CoursePeopleResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class PersonInfo {
+        private String enrollmentId;
         private String userId;
         private String name;
         private String email;
