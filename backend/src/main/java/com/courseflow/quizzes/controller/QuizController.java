@@ -1,6 +1,7 @@
 package com.courseflow.quizzes.controller;
 
 import com.courseflow.common.dto.ApiResponse;
+import com.courseflow.common.security.RequireInstructor;
 import com.courseflow.quizzes.dto.QuizAttemptRequest;
 import com.courseflow.quizzes.dto.QuizAttemptResponse;
 import com.courseflow.quizzes.dto.QuizRequest;
@@ -35,7 +36,8 @@ public class QuizController {
     }
     
     @PostMapping
-    @Operation(summary = "Create quiz", description = "Create a new quiz. Only instructors and admins can create quizzes.")
+    @RequireInstructor
+    @Operation(summary = "Create quiz", description = "Create a new quiz. Only instructors and TAs can create quizzes.")
     public ResponseEntity<ApiResponse<QuizResponse>> createQuiz(
             @PathVariable String courseId,
             @Valid @RequestBody QuizRequest request) {
@@ -53,7 +55,8 @@ public class QuizController {
     }
     
     @PatchMapping("/{quizId}")
-    @Operation(summary = "Update quiz", description = "Update quiz details. Only instructors and admins can update quizzes.")
+    @RequireInstructor
+    @Operation(summary = "Update quiz", description = "Update quiz details. Only instructors and TAs can update quizzes.")
     public ResponseEntity<ApiResponse<QuizResponse>> updateQuiz(
             @PathVariable String courseId,
             @PathVariable String quizId,
@@ -63,7 +66,8 @@ public class QuizController {
     }
     
     @DeleteMapping("/{quizId}")
-    @Operation(summary = "Delete quiz", description = "Delete a quiz. Only instructors and admins can delete quizzes.")
+    @RequireInstructor
+    @Operation(summary = "Delete quiz", description = "Delete a quiz. Only instructors and TAs can delete quizzes.")
     public ResponseEntity<ApiResponse<Void>> deleteQuiz(
             @PathVariable String courseId,
             @PathVariable String quizId) {
@@ -101,11 +105,24 @@ public class QuizController {
     }
     
     @GetMapping("/{quizId}/attempts")
-    @Operation(summary = "Get all quiz attempts", description = "Get all quiz attempts for a quiz. Only instructors and admins can view all attempts.")
+    @RequireInstructor
+    @Operation(summary = "Get all quiz attempts", description = "Get all quiz attempts for a quiz. Only instructors and TAs can view all attempts.")
     public ResponseEntity<ApiResponse<List<QuizAttemptResponse>>> getAllAttempts(
             @PathVariable String courseId,
             @PathVariable String quizId) {
         List<QuizAttemptResponse> attempts = quizService.getAllAttempts(courseId, quizId);
         return ResponseEntity.ok(ApiResponse.success(attempts));
+    }
+    
+    @GetMapping("/{quizId}/my-attempt")
+    @Operation(summary = "Get my quiz attempt", description = "Get student's current attempt (in-progress or most recent submitted).")
+    public ResponseEntity<ApiResponse<QuizAttemptResponse>> getMyAttempt(
+            @PathVariable String courseId,
+            @PathVariable String quizId) {
+        QuizAttemptResponse attempt = quizService.getMyAttempt(courseId, quizId);
+        if (attempt == null) {
+            return ResponseEntity.ok(ApiResponse.success(null, "No attempt found"));
+        }
+        return ResponseEntity.ok(ApiResponse.success(attempt));
     }
 }

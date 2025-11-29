@@ -1,11 +1,25 @@
 package com.courseflow.grades.service;
 
 import com.courseflow.assignments.model.Assignment;
+import com.courseflow.assignments.model.Submission;
 import com.courseflow.assignments.repository.AssignmentRepository;
+import com.courseflow.assignments.repository.SubmissionRepository;
+import com.courseflow.auth.service.AuthService;
+import com.courseflow.common.error.ApiException;
+import com.courseflow.enrollments.model.Enrollment;
+import com.courseflow.enrollments.repository.EnrollmentRepository;
 import com.courseflow.enrollments.service.EnrollmentService;
 import com.courseflow.grades.dto.GradebookResponse;
+import com.courseflow.grades.dto.GradebookViewResponse;
 import com.courseflow.grades.model.Gradebook;
 import com.courseflow.grades.repository.GradebookRepository;
+import com.courseflow.quizzes.model.Question;
+import com.courseflow.quizzes.model.Quiz;
+import com.courseflow.quizzes.model.QuizAttempt;
+import com.courseflow.quizzes.repository.QuestionRepository;
+import com.courseflow.quizzes.repository.QuizAttemptRepository;
+import com.courseflow.quizzes.repository.QuizRepository;
+import com.courseflow.users.model.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
@@ -13,8 +27,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -24,27 +41,34 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class GradebookService {
-    
+
     private final GradebookRepository gradebookRepository;
     private final AssignmentRepository assignmentRepository;
+    private final SubmissionRepository submissionRepository;
+    private final QuizRepository quizRepository;
+    private final QuestionRepository questionRepository;
+    private final QuizAttemptRepository quizAttemptRepository;
+    private final EnrollmentRepository enrollmentRepository;
     private final EnrollmentService enrollmentService;
-    
+    private final AuthService authService;
+
     /**
      * Get or create gradebook for a course and student.
      * 
-     * @param courseId The course ID
+     * @param courseId  The course ID
      * @param studentId The student ID
      * @return Gradebook entity
      */
     private Gradebook getOrCreateGradebook(String courseId, String studentId) {
         Optional<Gradebook> existing = gradebookRepository.findByCourseIdAndStudentId(courseId, studentId);
-        
+
         if (existing.isPresent()) {
             return existing.get();
         }
-        
+
         // Create new gradebook
         Gradebook gradebook = Gradebook.builder()
+                .id(UUID.randomUUID().toString())
                 .courseId(courseId)
                 .studentId(studentId)
                 .items(new ArrayList<>())
@@ -54,7 +78,7 @@ public class GradebookService {
                         .percent(0.0)
                         .build())
                 .build();
-        
+
         try {
             gradebook = gradebookRepository.save(gradebook);
             log.debug("Created new gradebook for student {} in course {}", studentId, courseId);
@@ -63,36 +87,36 @@ public class GradebookService {
             gradebook = gradebookRepository.findByCourseIdAndStudentId(courseId, studentId)
                     .orElseThrow(() -> new RuntimeException("Failed to create gradebook"));
         }
-        
+
         return gradebook;
     }
-    
+
     /**
      * Update gradebook when a student submits an assignment.
      * 
-     * @param courseId The course ID
-     * @param studentId The student ID
+     * @param courseId     The course ID
+     * @param studentId    The student ID
      * @param assignmentId The assignment ID
-     * @param status The status (typically "SUBMITTED")
+     * @param status       The status (typically "SUBMITTED")
      */
     public void updateGradebookOnSubmission(String courseId, String studentId, String assignmentId, String status) {
         // Get assignment to retrieve title and points
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElse(null);
-        
+
         if (assignment == null) {
             log.warn("Assignment {} not found when updating gradebook", assignmentId);
             return;
         }
-        
+
         Gradebook gradebook = getOrCreateGradebook(courseId, studentId);
-        
+
         // Find existing item or create new one
         Optional<Gradebook.GradeItem> existingItemOpt = gradebook.getItems().stream()
-                .filter(item -> item.getItemId().equals(assignmentId) && 
-                               item.getType() == Gradebook.ItemType.ASSIGNMENT)
+                .filter(item -> item.getItemId().equals(assignmentId) &&
+                        item.getType() == Gradebook.ItemType.ASSIGNMENT)
                 .findFirst();
-        
+
         if (existingItemOpt.isPresent()) {
             // Update existing item
             Gradebook.GradeItem item = existingItemOpt.get();
@@ -112,39 +136,39 @@ public class GradebookService {
                     .status(status)
                     .gradedAt(null)
                     .build();
-            
+
             gradebook.getItems().add(newItem);
         }
-        
+
         gradebookRepository.save(gradebook);
-        log.debug("Updated gradebook for student {} in course {} on assignment submission", 
+        log.debug("Updated gradebook for student {} in course {} on assignment submission",
                 studentId, courseId);
     }
-    
+
     /**
      * Update gradebook when an instructor grades a submission.
      * 
-     * @param courseId The course ID
-     * @param studentId The student ID
+     * @param courseId     The course ID
+     * @param studentId    The student ID
      * @param assignmentId The assignment ID
-     * @param score The score received
-     * @param points The maximum points possible
+     * @param score        The score received
+     * @param points       The maximum points possible
      */
-    public void updateGradebookOnGrade(String courseId, String studentId, String assignmentId, 
-                                       Double score, Double points) {
+    public void updateGradebookOnGrade(String courseId, String studentId, String assignmentId,
+            Double score, Double points) {
         Gradebook gradebook = getOrCreateGradebook(courseId, studentId);
-        
+
         // Get assignment for title
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElse(null);
         String title = assignment != null ? assignment.getTitle() : "Assignment";
-        
+
         // Find existing item or create new one
         Optional<Gradebook.GradeItem> existingItemOpt = gradebook.getItems().stream()
-                .filter(item -> item.getItemId().equals(assignmentId) && 
-                               item.getType() == Gradebook.ItemType.ASSIGNMENT)
+                .filter(item -> item.getItemId().equals(assignmentId) &&
+                        item.getType() == Gradebook.ItemType.ASSIGNMENT)
                 .findFirst();
-        
+
         Gradebook.GradeItem item;
         if (existingItemOpt.isPresent()) {
             item = existingItemOpt.get();
@@ -157,7 +181,7 @@ public class GradebookService {
                     .build();
             gradebook.getItems().add(item);
         }
-        
+
         // Update item with grade information
         item.setScore(score);
         item.setPoints(points);
@@ -166,35 +190,41 @@ public class GradebookService {
         if (item.getTitle() == null || item.getTitle().isBlank()) {
             item.setTitle(title);
         }
-        
+
+        // Get feedback from submission
+        Optional<Submission> submission = submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId);
+        if (submission.isPresent() && submission.get().getGrade() != null) {
+            item.setFeedback(submission.get().getGrade().getFeedback());
+        }
+
         // Recalculate totals
         recalculateTotals(gradebook);
-        
+
         gradebookRepository.save(gradebook);
-        log.debug("Updated gradebook for student {} in course {} on assignment grade", 
+        log.debug("Updated gradebook for student {} in course {} on assignment grade",
                 studentId, courseId);
     }
-    
+
     /**
      * Update gradebook when a student submits a quiz.
      * 
-     * @param courseId The course ID
-     * @param studentId The student ID
-     * @param quizId The quiz ID
-     * @param score The score received
+     * @param courseId    The course ID
+     * @param studentId   The student ID
+     * @param quizId      The quiz ID
+     * @param score       The score received
      * @param totalPoints The maximum points possible
-     * @param quizTitle The quiz title
+     * @param quizTitle   The quiz title
      */
-    public void updateGradebookOnQuizSubmission(String courseId, String studentId, String quizId, 
-                                                 Double score, Double totalPoints, String quizTitle) {
+    public void updateGradebookOnQuizSubmission(String courseId, String studentId, String quizId,
+            Double score, Double totalPoints, String quizTitle) {
         Gradebook gradebook = getOrCreateGradebook(courseId, studentId);
-        
+
         // Find existing item or create new one
         Optional<Gradebook.GradeItem> existingItemOpt = gradebook.getItems().stream()
-                .filter(item -> item.getItemId().equals(quizId) && 
-                               item.getType() == Gradebook.ItemType.QUIZ)
+                .filter(item -> item.getItemId().equals(quizId) &&
+                        item.getType() == Gradebook.ItemType.QUIZ)
                 .findFirst();
-        
+
         Gradebook.GradeItem item;
         if (existingItemOpt.isPresent()) {
             item = existingItemOpt.get();
@@ -207,7 +237,7 @@ public class GradebookService {
                     .build();
             gradebook.getItems().add(item);
         }
-        
+
         // Update item with quiz score information
         item.setScore(score);
         item.setPoints(totalPoints);
@@ -216,15 +246,15 @@ public class GradebookService {
         if (item.getTitle() == null || item.getTitle().isBlank()) {
             item.setTitle(quizTitle);
         }
-        
+
         // Recalculate totals
         recalculateTotals(gradebook);
-        
+
         gradebookRepository.save(gradebook);
-        log.debug("Updated gradebook for student {} in course {} on quiz submission", 
+        log.debug("Updated gradebook for student {} in course {} on quiz submission",
                 studentId, courseId);
     }
-    
+
     /**
      * Recalculate totals for a gradebook based on all items.
      * 
@@ -233,91 +263,510 @@ public class GradebookService {
     public void recalculateTotals(Gradebook gradebook) {
         double earned = 0.0;
         double possible = 0.0;
-        
+
         for (Gradebook.GradeItem item : gradebook.getItems()) {
             if (item.getPoints() != null && item.getPoints() > 0) {
                 possible += item.getPoints();
-                
+
+                // Use override score if present, otherwise use regular score
+                Double finalScore = item.getOverrideScore() != null ? item.getOverrideScore() : item.getScore();
+
                 // Only count score if it's been graded
-                if (item.getScore() != null && item.getStatus() != null && 
-                    item.getStatus().equals("GRADED")) {
-                    earned += item.getScore();
+                if (finalScore != null && item.getStatus() != null &&
+                        item.getStatus().equals("GRADED")) {
+                    earned += finalScore;
                 }
             }
         }
-        
+
         double percent = possible > 0 ? (earned / possible) * 100.0 : 0.0;
-        
+
         gradebook.setTotal(Gradebook.Total.builder()
                 .earned(earned)
                 .possible(possible)
                 .percent(percent)
                 .build());
     }
-    
+
     /**
-     * Get gradebook for a specific student in a course.
+     * Get gradebook for a specific student in a course (aggregated from source
+     * data).
      * 
-     * @param courseId The course ID
+     * @param courseId  The course ID
      * @param studentId The student ID
      * @return Gradebook response DTO
      */
     public GradebookResponse getStudentGradebook(String courseId, String studentId) {
         // Verify enrollment
         enrollmentService.verifyEnrollment(courseId, studentId);
-        
-        Gradebook gradebook = gradebookRepository.findByCourseIdAndStudentId(courseId, studentId)
-                .orElse(Gradebook.builder()
-                        .courseId(courseId)
-                        .studentId(studentId)
-                        .items(new ArrayList<>())
-                        .total(Gradebook.Total.builder()
-                                .earned(0.0)
-                                .possible(0.0)
-                                .percent(0.0)
-                                .build())
-                        .build());
-        
-        return mapToResponse(gradebook);
+
+        // Aggregate grades from assignments and quizzes
+        return aggregateStudentGrades(courseId, studentId);
     }
-    
+
     /**
-     * Get all gradebooks for a course. Only instructors can view all gradebooks.
+     * Aggregate student grades from assignments and quizzes directly.
+     * 
+     * @param courseId  The course ID
+     * @param studentId The student ID
+     * @return Gradebook response with aggregated data
+     */
+    private GradebookResponse aggregateStudentGrades(String courseId, String studentId) {
+        List<GradebookResponse.GradeItemResponse> items = new ArrayList<>();
+        double totalEarned = 0.0;
+        double totalPossible = 0.0;
+
+        // Get cached gradebook if it exists (for override scores)
+        Optional<Gradebook> cachedGradebookOpt = gradebookRepository.findByCourseIdAndStudentId(courseId, studentId);
+
+        // Get all published assignments for the course
+        List<Assignment> assignments = assignmentRepository.findByCourseIdAndPublishedOrderByDueAtAsc(courseId, true);
+
+        for (Assignment assignment : assignments) {
+            Optional<Submission> submission = submissionRepository.findByAssignmentIdAndStudentId(assignment.getId(),
+                    studentId);
+
+            Double score = null;
+            String status = "NOT_SUBMITTED";
+            Instant gradedAt = null;
+            String feedback = null;
+
+            if (submission.isPresent()) {
+                Submission sub = submission.get();
+                if (sub.getStatus() == Submission.SubmissionStatus.SUBMITTED) {
+                    status = "SUBMITTED";
+                    if (sub.getGrade() != null) {
+                        score = sub.getGrade().getPointsAwarded();
+                        status = "GRADED";
+                        gradedAt = sub.getGrade().getGradedAt();
+                        feedback = sub.getGrade().getFeedback();
+                    }
+                } else {
+                    status = "DRAFT";
+                }
+            }
+
+            // Check for override score
+            Double overrideScore = null;
+            if (cachedGradebookOpt.isPresent()) {
+                Gradebook cachedGradebook = cachedGradebookOpt.get();
+                Optional<Gradebook.GradeItem> cachedItem = cachedGradebook.getItems().stream()
+                        .filter(item -> item.getItemId().equals(assignment.getId()) &&
+                                item.getType() == Gradebook.ItemType.ASSIGNMENT)
+                        .findFirst();
+                if (cachedItem.isPresent() && cachedItem.get().getOverrideScore() != null) {
+                    overrideScore = cachedItem.get().getOverrideScore();
+                    score = overrideScore;
+                    status = "GRADED";
+                }
+            }
+
+            items.add(GradebookResponse.GradeItemResponse.builder()
+                    .type("ASSIGNMENT")
+                    .itemId(assignment.getId())
+                    .title(assignment.getTitle())
+                    .score(score)
+                    .points(assignment.getPoints())
+                    .status(status)
+                    .gradedAt(gradedAt)
+                    .feedback(feedback)
+                    .overrideScore(overrideScore)
+                    .build());
+
+            if (assignment.getPoints() != null && assignment.getPoints() > 0) {
+                totalPossible += assignment.getPoints();
+                if (score != null && status.equals("GRADED")) {
+                    totalEarned += score;
+                }
+            }
+        }
+
+        // Get all published quizzes for the course
+        List<Quiz> quizzes = quizRepository.findByCourseIdAndPublishedOrderByCreatedAtDesc(courseId, true);
+
+        for (Quiz quiz : quizzes) {
+            // Get student's best attempt (or most recent submitted)
+            Optional<QuizAttempt> attemptOpt = quizAttemptRepository
+                    .findFirstByQuizIdAndStudentIdOrderByStartedAtDesc(quiz.getId(), studentId);
+
+            Double score = null;
+            String status = "NOT_SUBMITTED";
+            Instant gradedAt = null;
+            double quizTotalPoints = 0.0;
+            Double overrideScore = null;
+
+            // Calculate total points for quiz (using separate Question entities)
+            List<Question> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
+            if (!questions.isEmpty()) {
+                quizTotalPoints = questions.stream()
+                        .mapToDouble(q -> q.getPoints() != null ? q.getPoints() : 0.0)
+                        .sum();
+            }
+
+            if (attemptOpt.isPresent()) {
+                QuizAttempt attempt = attemptOpt.get();
+                if (attempt.getStatus() == QuizAttempt.AttemptStatus.SUBMITTED) {
+                    status = "SUBMITTED";
+                    if (attempt.getScore() != null) {
+                        score = attempt.getScore();
+                        status = "GRADED";
+                        gradedAt = attempt.getGradedAt() != null ? attempt.getGradedAt() : attempt.getSubmittedAt();
+                    }
+                } else {
+                    status = "IN_PROGRESS";
+                }
+            }
+
+            // Check for override score
+            if (cachedGradebookOpt.isPresent()) {
+                Gradebook cachedGradebook = cachedGradebookOpt.get();
+                Optional<Gradebook.GradeItem> cachedItem = cachedGradebook.getItems().stream()
+                        .filter(item -> item.getItemId().equals(quiz.getId()) &&
+                                item.getType() == Gradebook.ItemType.QUIZ)
+                        .findFirst();
+                if (cachedItem.isPresent() && cachedItem.get().getOverrideScore() != null) {
+                    overrideScore = cachedItem.get().getOverrideScore();
+                    score = overrideScore;
+                    status = "GRADED";
+                }
+            }
+
+            items.add(GradebookResponse.GradeItemResponse.builder()
+                    .type("QUIZ")
+                    .itemId(quiz.getId())
+                    .title(quiz.getTitle())
+                    .score(score)
+                    .points(quizTotalPoints > 0 ? quizTotalPoints : null)
+                    .status(status)
+                    .gradedAt(gradedAt)
+                    .overrideScore(overrideScore)
+                    .build());
+
+            if (quizTotalPoints > 0) {
+                totalPossible += quizTotalPoints;
+                if (score != null && status.equals("GRADED")) {
+                    totalEarned += score;
+                }
+            }
+        }
+
+        double percent = totalPossible > 0 ? (totalEarned / totalPossible) * 100.0 : 0.0;
+
+        return GradebookResponse.builder()
+                .courseId(courseId)
+                .studentId(studentId)
+                .items(items)
+                .total(GradebookResponse.TotalResponse.builder()
+                        .earned(totalEarned)
+                        .possible(totalPossible)
+                        .percent(percent)
+                        .build())
+                .updatedAt(Instant.now())
+                .build();
+    }
+
+    /**
+     * Get all gradebooks for a course (instructor view). Aggregates from source
+     * data.
      * 
      * @param courseId The course ID
-     * @return List of gradebook responses
+     * @return List of gradebook responses for all students
      */
     public List<GradebookResponse> getAllGradebooks(String courseId) {
-        List<Gradebook> gradebooks = gradebookRepository.findByCourseId(courseId);
-        
-        // If no gradebooks exist, return empty list (don't create them automatically)
-        return gradebooks.stream()
-                .map(this::mapToResponse)
+        // Get all enrolled students
+        List<Enrollment> enrollments = enrollmentRepository.findByCourseId(courseId);
+
+        return enrollments.stream()
+                .filter(e -> e.getStatus() == Enrollment.EnrollmentStatus.ACTIVE)
+                .map(e -> aggregateStudentGrades(courseId, e.getUserId()))
                 .collect(Collectors.toList());
     }
-    
+
+    /**
+     * Get gradebook view for instructor (table format with all students and items).
+     * 
+     * @param courseId The course ID
+     * @return GradebookViewResponse with students and items matrix
+     */
+    public GradebookViewResponse getGradebookView(String courseId) {
+        User currentUser = authService.getCurrentUser();
+
+        // Verify enrollment
+        enrollmentService.verifyEnrollment(courseId, currentUser.getId());
+
+        // Check permission: must be instructor/TA of the course or admin
+        boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
+
+        if (!isInstructor && !isAdmin) {
+            throw new ApiException("INSUFFICIENT_PERMISSIONS",
+                    "Only instructors and admins can view gradebook", 403);
+        }
+
+        // Get all enrolled students
+        List<Enrollment> enrollments = enrollmentRepository.findByCourseId(courseId);
+        List<String> studentIds = enrollments.stream()
+                .filter(e -> e.getStatus() == Enrollment.EnrollmentStatus.ACTIVE)
+                .map(Enrollment::getUserId)
+                .collect(Collectors.toList());
+
+        // Get all published assignments and quizzes
+        List<Assignment> assignments = assignmentRepository.findByCourseIdAndPublishedOrderByDueAtAsc(courseId, true);
+        List<Quiz> quizzes = quizRepository.findByCourseIdAndPublishedOrderByCreatedAtDesc(courseId, true);
+
+        // Build items list
+        List<GradebookViewResponse.GradebookItem> items = new ArrayList<>();
+
+        for (Assignment assignment : assignments) {
+            items.add(GradebookViewResponse.GradebookItem.builder()
+                    .itemId(assignment.getId())
+                    .title(assignment.getTitle())
+                    .type("ASSIGNMENT")
+                    .points(assignment.getPoints())
+                    .build());
+        }
+
+        for (Quiz quiz : quizzes) {
+            // Calculate total points for quiz (using separate Question entities)
+            double quizTotalPoints = 0.0;
+            List<Question> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
+            if (!questions.isEmpty()) {
+                quizTotalPoints = questions.stream()
+                        .mapToDouble(q -> q.getPoints() != null ? q.getPoints() : 0.0)
+                        .sum();
+            }
+
+            items.add(GradebookViewResponse.GradebookItem.builder()
+                    .itemId(quiz.getId())
+                    .title(quiz.getTitle())
+                    .type("QUIZ")
+                    .points(quizTotalPoints > 0 ? quizTotalPoints : null)
+                    .build());
+        }
+
+        // Build student grades matrix
+        List<GradebookViewResponse.StudentGradeRow> studentRows = new ArrayList<>();
+
+        for (String studentId : studentIds) {
+            Map<String, GradebookViewResponse.GradeCell> grades = new HashMap<>();
+            double totalEarned = 0.0;
+            double totalPossible = 0.0;
+
+            // Get assignment grades (check for override in cached gradebook)
+            Gradebook cachedGradebook = gradebookRepository.findByCourseIdAndStudentId(courseId, studentId)
+                    .orElse(null);
+
+            for (Assignment assignment : assignments) {
+                Optional<Submission> submission = submissionRepository
+                        .findByAssignmentIdAndStudentId(assignment.getId(), studentId);
+
+                Double score = null;
+                String status = "NOT_SUBMITTED";
+                if (submission.isPresent()) {
+                    Submission sub = submission.get();
+                    if (sub.getStatus() == Submission.SubmissionStatus.SUBMITTED) {
+                        status = "SUBMITTED";
+                        if (sub.getGrade() != null) {
+                            score = sub.getGrade().getPointsAwarded();
+                            status = "GRADED";
+                        }
+                    } else {
+                        status = "DRAFT";
+                    }
+                }
+
+                // Check for override score
+                if (cachedGradebook != null) {
+                    Optional<Gradebook.GradeItem> cachedItem = cachedGradebook.getItems().stream()
+                            .filter(item -> item.getItemId().equals(assignment.getId()) &&
+                                    item.getType() == Gradebook.ItemType.ASSIGNMENT)
+                            .findFirst();
+                    if (cachedItem.isPresent() && cachedItem.get().getOverrideScore() != null) {
+                        score = cachedItem.get().getOverrideScore();
+                        status = "GRADED";
+                    }
+                }
+
+                grades.put(assignment.getId(), GradebookViewResponse.GradeCell.builder()
+                        .score(score)
+                        .points(assignment.getPoints())
+                        .status(status)
+                        .build());
+
+                if (assignment.getPoints() != null && assignment.getPoints() > 0) {
+                    totalPossible += assignment.getPoints();
+                    if (score != null && status.equals("GRADED")) {
+                        totalEarned += score;
+                    }
+                }
+            }
+
+            // Get quiz grades (check for override in cached gradebook)
+            for (Quiz quiz : quizzes) {
+                Optional<QuizAttempt> attemptOpt = quizAttemptRepository
+                        .findFirstByQuizIdAndStudentIdOrderByStartedAtDesc(quiz.getId(), studentId);
+
+                Double score = null;
+                String status = "NOT_SUBMITTED";
+                double quizTotalPoints = 0.0;
+
+                // Calculate total points for quiz (using separate Question entities)
+                List<Question> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
+                if (!questions.isEmpty()) {
+                    quizTotalPoints = questions.stream()
+                            .mapToDouble(q -> q.getPoints() != null ? q.getPoints() : 0.0)
+                            .sum();
+                }
+
+                if (attemptOpt.isPresent()) {
+                    QuizAttempt attempt = attemptOpt.get();
+                    if (attempt.getStatus() == QuizAttempt.AttemptStatus.SUBMITTED) {
+                        status = "SUBMITTED";
+                        if (attempt.getScore() != null) {
+                            score = attempt.getScore();
+                            status = "GRADED";
+                        }
+                    } else {
+                        status = "IN_PROGRESS";
+                    }
+                }
+
+                // Check for override score
+                if (cachedGradebook != null) {
+                    Optional<Gradebook.GradeItem> cachedItem = cachedGradebook.getItems().stream()
+                            .filter(item -> item.getItemId().equals(quiz.getId()) &&
+                                    item.getType() == Gradebook.ItemType.QUIZ)
+                            .findFirst();
+                    if (cachedItem.isPresent() && cachedItem.get().getOverrideScore() != null) {
+                        score = cachedItem.get().getOverrideScore();
+                        status = "GRADED";
+                    }
+                }
+
+                grades.put(quiz.getId(), GradebookViewResponse.GradeCell.builder()
+                        .score(score)
+                        .points(quizTotalPoints > 0 ? quizTotalPoints : null)
+                        .status(status)
+                        .build());
+
+                if (quizTotalPoints > 0) {
+                    totalPossible += quizTotalPoints;
+                    if (score != null && status.equals("GRADED")) {
+                        totalEarned += score;
+                    }
+                }
+            }
+
+            double percent = totalPossible > 0 ? (totalEarned / totalPossible) * 100.0 : 0.0;
+
+            studentRows.add(GradebookViewResponse.StudentGradeRow.builder()
+                    .studentId(studentId)
+                    .grades(grades)
+                    .totalEarned(totalEarned)
+                    .totalPossible(totalPossible)
+                    .percent(percent)
+                    .build());
+        }
+
+        return GradebookViewResponse.builder()
+                .courseId(courseId)
+                .items(items)
+                .students(studentRows)
+                .build();
+    }
+
+    /**
+     * Override a grade manually (instructor only).
+     * 
+     * @param courseId      The course ID
+     * @param studentId     The student ID
+     * @param itemId        The assignment or quiz ID
+     * @param itemType      The item type ("ASSIGNMENT" or "QUIZ")
+     * @param overrideScore The override score (null to remove override)
+     */
+    public void overrideGrade(String courseId, String studentId, String itemId, String itemType, Double overrideScore) {
+        User currentUser = authService.getCurrentUser();
+
+        // Check permission: must be instructor/TA of the course or admin
+        boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
+
+        if (!isInstructor && !isAdmin) {
+            throw new ApiException("INSUFFICIENT_PERMISSIONS",
+                    "Only instructors and admins can override grades", 403);
+        }
+
+        Gradebook gradebook = getOrCreateGradebook(courseId, studentId);
+
+        // Find or create grade item
+        Optional<Gradebook.GradeItem> itemOpt = gradebook.getItems().stream()
+                .filter(item -> item.getItemId().equals(itemId) &&
+                        item.getType() != null && item.getType().name().equals(itemType))
+                .findFirst();
+
+        Gradebook.GradeItem item;
+        if (itemOpt.isPresent()) {
+            item = itemOpt.get();
+        } else {
+            // Create new item
+            String title = "Item";
+            if ("ASSIGNMENT".equals(itemType)) {
+                Assignment assignment = assignmentRepository.findById(itemId).orElse(null);
+                title = assignment != null ? assignment.getTitle() : "Assignment";
+            } else if ("QUIZ".equals(itemType)) {
+                Quiz quiz = quizRepository.findById(itemId).orElse(null);
+                title = quiz != null ? quiz.getTitle() : "Quiz";
+            }
+
+            item = Gradebook.GradeItem.builder()
+                    .type(Gradebook.ItemType.valueOf(itemType))
+                    .itemId(itemId)
+                    .title(title)
+                    .build();
+            gradebook.getItems().add(item);
+        }
+
+        // Set override score
+        item.setOverrideScore(overrideScore);
+
+        // Recalculate totals (use override score if present, otherwise use regular
+        // score)
+        recalculateTotals(gradebook);
+
+        gradebookRepository.save(gradebook);
+        log.info("Grade overridden: item {} for student {} in course {} by user {}",
+                itemId, studentId, courseId, currentUser.getId());
+    }
+
     /**
      * Map Gradebook entity to GradebookResponse DTO.
      */
     private GradebookResponse mapToResponse(Gradebook gradebook) {
         List<GradebookResponse.GradeItemResponse> itemResponses = gradebook.getItems().stream()
-                .map(item -> GradebookResponse.GradeItemResponse.builder()
-                        .type(item.getType().name())
-                        .itemId(item.getItemId())
-                        .title(item.getTitle())
-                        .score(item.getScore())
-                        .points(item.getPoints())
-                        .status(item.getStatus())
-                        .gradedAt(item.getGradedAt())
-                        .build())
+                .map(item -> {
+                    // Use override score if present, otherwise use regular score
+                    Double finalScore = item.getOverrideScore() != null ? item.getOverrideScore() : item.getScore();
+
+                    return GradebookResponse.GradeItemResponse.builder()
+                            .type(item.getType() != null ? item.getType().name() : "UNKNOWN")
+                            .itemId(item.getItemId())
+                            .title(item.getTitle())
+                            .score(finalScore)
+                            .points(item.getPoints())
+                            .status(item.getStatus())
+                            .gradedAt(item.getGradedAt())
+                            .feedback(item.getFeedback())
+                            .overrideScore(item.getOverrideScore())
+                            .build();
+                })
                 .collect(Collectors.toList());
-        
+
         GradebookResponse.TotalResponse totalResponse = GradebookResponse.TotalResponse.builder()
                 .earned(gradebook.getTotal().getEarned())
                 .possible(gradebook.getTotal().getPossible())
                 .percent(gradebook.getTotal().getPercent())
                 .build();
-        
+
         return GradebookResponse.builder()
                 .id(gradebook.getId())
                 .courseId(gradebook.getCourseId())
@@ -328,5 +777,3 @@ public class GradebookService {
                 .build();
     }
 }
-
-

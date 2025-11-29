@@ -18,17 +18,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Controller for assignment endpoints.
+ * Controller for assignment endpoints (Canvas-like structure).
  */
 @RestController
-@RequestMapping("/courses/{courseId}/assignments")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 @Tag(name = "Assignments", description = "Assignment management endpoints")
-public class AssignmentController {
+public class AssignmentControllerNew {
     
     private final AssignmentService assignmentService;
     
-    @GetMapping
+    @GetMapping("/courses/{courseId}/assignments")
     @Operation(summary = "Get assignments", description = "Get all assignments for a course. User must be enrolled in the course.")
     public ResponseEntity<ApiResponse<List<AssignmentResponse>>> getAssignments(
             @PathVariable String courseId) {
@@ -36,7 +36,7 @@ public class AssignmentController {
         return ResponseEntity.ok(ApiResponse.success(assignments));
     }
     
-    @PostMapping
+    @PostMapping("/courses/{courseId}/assignments")
     @RequireInstructor
     @Operation(summary = "Create assignment", description = "Create a new assignment. Only instructors and TAs can create assignments.")
     public ResponseEntity<ApiResponse<AssignmentResponse>> createAssignment(
@@ -46,78 +46,61 @@ public class AssignmentController {
         return ResponseEntity.ok(ApiResponse.success(assignment, "Assignment created successfully"));
     }
     
-    @GetMapping("/{assignmentId}")
+    @GetMapping("/assignments/{assignmentId}")
     @Operation(summary = "Get assignment by ID", description = "Get assignment details. User must be enrolled in the course.")
     public ResponseEntity<ApiResponse<AssignmentResponse>> getAssignment(
-            @PathVariable String courseId,
             @PathVariable String assignmentId) {
-        AssignmentResponse assignment = assignmentService.getAssignment(courseId, assignmentId);
+        // We need to get courseId from assignment, so we'll need to update the service method
+        AssignmentResponse assignment = assignmentService.getAssignmentById(assignmentId);
         return ResponseEntity.ok(ApiResponse.success(assignment));
     }
     
-    @GetMapping("/{assignmentId}/my-submission")
+    @PatchMapping("/assignments/{assignmentId}")
+    @RequireInstructor
+    @Operation(summary = "Update assignment", description = "Update assignment details. Only instructors and TAs can update assignments.")
+    public ResponseEntity<ApiResponse<AssignmentResponse>> updateAssignment(
+            @PathVariable String assignmentId,
+            @Valid @RequestBody AssignmentRequest request) {
+        AssignmentResponse assignment = assignmentService.updateAssignmentById(assignmentId, request);
+        return ResponseEntity.ok(ApiResponse.success(assignment, "Assignment updated successfully"));
+    }
+    
+    @PostMapping("/assignments/{assignmentId}/submit")
+    @Operation(summary = "Submit assignment", description = "Submit an assignment. Students can submit their work.")
+    public ResponseEntity<ApiResponse<SubmissionResponse>> submitAssignment(
+            @PathVariable String assignmentId,
+            @Valid @RequestBody SubmissionRequest request) {
+        SubmissionResponse submission = assignmentService.submitAssignmentById(assignmentId, request);
+        return ResponseEntity.ok(ApiResponse.success(submission, "Assignment submitted successfully"));
+    }
+    
+    @GetMapping("/assignments/{assignmentId}/submissions")
+    @RequireInstructor
+    @Operation(summary = "Get submissions", description = "Get all submissions for an assignment. Only instructors and TAs can view all submissions.")
+    public ResponseEntity<ApiResponse<List<SubmissionResponse>>> getSubmissions(
+            @PathVariable String assignmentId) {
+        List<SubmissionResponse> submissions = assignmentService.getSubmissionsById(assignmentId);
+        return ResponseEntity.ok(ApiResponse.success(submissions));
+    }
+    
+    @GetMapping("/assignments/{assignmentId}/my-submission")
     @Operation(summary = "Get my submission", description = "Get student's own submission for an assignment.")
     public ResponseEntity<ApiResponse<SubmissionResponse>> getMySubmission(
-            @PathVariable String courseId,
             @PathVariable String assignmentId) {
-        SubmissionResponse submission = assignmentService.getMySubmission(courseId, assignmentId);
+        SubmissionResponse submission = assignmentService.getMySubmissionById(assignmentId);
         if (submission == null) {
             return ResponseEntity.ok(ApiResponse.success(null, "No submission found"));
         }
         return ResponseEntity.ok(ApiResponse.success(submission));
     }
     
-    @PatchMapping("/{assignmentId}")
-    @RequireInstructor
-    @Operation(summary = "Update assignment", description = "Update assignment details. Only instructors and TAs can update assignments.")
-    public ResponseEntity<ApiResponse<AssignmentResponse>> updateAssignment(
-            @PathVariable String courseId,
-            @PathVariable String assignmentId,
-            @Valid @RequestBody AssignmentRequest request) {
-        AssignmentResponse assignment = assignmentService.updateAssignment(courseId, assignmentId, request);
-        return ResponseEntity.ok(ApiResponse.success(assignment, "Assignment updated successfully"));
-    }
-    
-    @DeleteMapping("/{assignmentId}")
-    @RequireInstructor
-    @Operation(summary = "Delete assignment", description = "Delete an assignment. Only instructors and TAs can delete assignments.")
-    public ResponseEntity<ApiResponse<Void>> deleteAssignment(
-            @PathVariable String courseId,
-            @PathVariable String assignmentId) {
-        assignmentService.deleteAssignment(courseId, assignmentId);
-        return ResponseEntity.ok(ApiResponse.success(null, "Assignment deleted successfully"));
-    }
-    
-    @PostMapping("/{assignmentId}/submit")
-    @Operation(summary = "Submit assignment", description = "Submit an assignment. Students can submit their work.")
-    public ResponseEntity<ApiResponse<SubmissionResponse>> submitAssignment(
-            @PathVariable String courseId,
-            @PathVariable String assignmentId,
-            @Valid @RequestBody SubmissionRequest request) {
-        SubmissionResponse submission = assignmentService.submitAssignment(courseId, assignmentId, request);
-        return ResponseEntity.ok(ApiResponse.success(submission, "Assignment submitted successfully"));
-    }
-    
-    @GetMapping("/{assignmentId}/submissions")
-    @RequireInstructor
-    @Operation(summary = "Get submissions", description = "Get all submissions for an assignment. Only instructors and TAs can view all submissions.")
-    public ResponseEntity<ApiResponse<List<SubmissionResponse>>> getSubmissions(
-            @PathVariable String courseId,
-            @PathVariable String assignmentId) {
-        List<SubmissionResponse> submissions = assignmentService.getSubmissions(courseId, assignmentId);
-        return ResponseEntity.ok(ApiResponse.success(submissions));
-    }
-    
-    @PatchMapping("/{assignmentId}/submissions/{submissionId}/grade")
+    @PatchMapping("/submissions/{submissionId}/grade")
     @RequireInstructor
     @Operation(summary = "Grade submission", description = "Grade a submission. Only instructors and TAs can grade submissions.")
     public ResponseEntity<ApiResponse<SubmissionResponse>> gradeSubmission(
-            @PathVariable String courseId,
-            @PathVariable String assignmentId,
             @PathVariable String submissionId,
             @Valid @RequestBody GradeSubmissionRequest request) {
-        SubmissionResponse submission = assignmentService.gradeSubmission(courseId, assignmentId, submissionId, request);
+        SubmissionResponse submission = assignmentService.gradeSubmissionById(submissionId, request);
         return ResponseEntity.ok(ApiResponse.success(submission, "Submission graded successfully"));
     }
 }
-

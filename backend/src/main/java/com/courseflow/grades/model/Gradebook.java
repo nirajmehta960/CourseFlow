@@ -96,6 +96,16 @@ public class Gradebook {
          * Timestamp when the item was graded.
          */
         private Instant gradedAt;
+        
+        /**
+         * Feedback from the grader (for assignments).
+         */
+        private String feedback;
+        
+        /**
+         * Manual override score (if instructor manually adjusted).
+         */
+        private Double overrideScore;
     }
     
     /**

@@ -32,11 +32,27 @@ public class Assignment {
     
     private String title;
     
+    /**
+     * Rich text description as HTML.
+     */
     private String description;
     
-    private Instant dueDate;
-    
     private Double points;
+    
+    /**
+     * Due date and time for the assignment.
+     */
+    private Instant dueAt;
+    
+    /**
+     * When the assignment becomes available (optional).
+     */
+    private Instant availableFrom;
+    
+    /**
+     * When the assignment is no longer available (optional).
+     */
+    private Instant availableUntil;
     
     @Builder.Default
     private Boolean published = false;

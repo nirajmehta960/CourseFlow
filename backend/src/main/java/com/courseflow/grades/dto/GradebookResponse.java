@@ -39,6 +39,8 @@ public class GradebookResponse {
         private Double points;
         private String status;
         private Instant gradedAt;
+        private String feedback;
+        private Double overrideScore;
     }
     
     /**

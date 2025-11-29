@@ -56,4 +56,13 @@ public interface QuizAttemptRepository extends MongoRepository<QuizAttempt, Stri
      * @return Optional quiz attempt
      */
     Optional<QuizAttempt> findFirstByQuizIdAndStudentIdOrderByStartedAtDesc(String quizId, String studentId);
+    
+    /**
+     * Find in-progress attempt for a student on a quiz.
+     * 
+     * @param quizId The quiz ID
+     * @param studentId The student ID
+     * @return Optional quiz attempt
+     */
+    Optional<QuizAttempt> findByQuizIdAndStudentIdAndStatus(String quizId, String studentId, QuizAttempt.AttemptStatus status);
 }

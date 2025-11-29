@@ -1,6 +1,6 @@
 package com.courseflow.quizzes.dto;
 
-import com.courseflow.quizzes.model.Quiz;
+import com.courseflow.quizzes.model.Question;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -24,6 +24,7 @@ public class QuizResponse {
     private String title;
     private String instructions;
     private Integer timeLimitMinutes;
+    private Instant dueAt;
     private Boolean published;
     private List<QuestionResponse> questions;
     private String createdBy;
@@ -39,8 +40,9 @@ public class QuizResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class QuestionResponse {
-        private String questionId;
-        private Quiz.QuestionType type;
+        private String id;
+        private Integer position;
+        private Question.QuestionType type;
         private String prompt;
         private List<String> options;
         private String correctAnswer; // May be null for students

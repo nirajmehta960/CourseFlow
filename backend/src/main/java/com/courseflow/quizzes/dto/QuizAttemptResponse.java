@@ -25,7 +25,9 @@ public class QuizAttemptResponse {
     private List<AnswerResponse> answers;
     private Instant startedAt;
     private Instant submittedAt;
+    private com.courseflow.quizzes.model.QuizAttempt.AttemptStatus status;
     private Double score;
+    private Instant gradedAt;
     
     /**
      * Answer response DTO.

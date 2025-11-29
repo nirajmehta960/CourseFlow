@@ -18,7 +18,7 @@ public interface AssignmentRepository extends MongoRepository<Assignment, String
      * @param courseId The course ID
      * @return List of assignments for the course
      */
-    List<Assignment> findByCourseIdOrderByDueDateAsc(String courseId);
+    List<Assignment> findByCourseIdOrderByDueAtAsc(String courseId);
     
     /**
      * Find all published assignments for a course.
@@ -27,7 +27,7 @@ public interface AssignmentRepository extends MongoRepository<Assignment, String
      * @param published Published status
      * @return List of assignments
      */
-    List<Assignment> findByCourseIdAndPublishedOrderByDueDateAsc(String courseId, Boolean published);
+    List<Assignment> findByCourseIdAndPublishedOrderByDueAtAsc(String courseId, Boolean published);
     
     /**
      * Check if an assignment exists in a course.

@@ -16,10 +16,15 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GradeSubmissionRequest {
     
-    @NotNull(message = "Score is required")
-    @PositiveOrZero(message = "Score must be non-negative")
-    private Double score;
+    /**
+     * Points awarded (out of assignment points).
+     */
+    @PositiveOrZero(message = "Points awarded must be non-negative")
+    private Double pointsAwarded;
     
+    /**
+     * Feedback from the grader.
+     */
     private String feedback;
 }
 

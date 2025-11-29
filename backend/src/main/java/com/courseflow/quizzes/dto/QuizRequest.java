@@ -1,6 +1,6 @@
 package com.courseflow.quizzes.dto;
 
-import com.courseflow.quizzes.model.Quiz;
+import com.courseflow.quizzes.model.Question;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,6 +11,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,11 +33,14 @@ public class QuizRequest {
     @Positive(message = "Time limit must be positive")
     private Integer timeLimitMinutes;
     
+    /**
+     * Due date and time for the quiz (optional).
+     */
+    private Instant dueAt;
+    
     private Boolean published;
     
     @Valid
-    @NotNull(message = "Questions are required")
-    @Size(min = 1, message = "Quiz must have at least one question")
     @Builder.Default
     private List<QuestionRequest> questions = new ArrayList<>();
     
@@ -48,11 +52,10 @@ public class QuizRequest {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class QuestionRequest {
-        @NotBlank(message = "Question ID is required")
-        private String questionId;
+        private String id; // Optional, for updates
         
         @NotNull(message = "Question type is required")
-        private Quiz.QuestionType type;
+        private Question.QuestionType type;
         
         @NotBlank(message = "Question prompt is required")
         @Size(max = 2000, message = "Prompt must be at most 2000 characters")
@@ -67,5 +70,7 @@ public class QuizRequest {
         @NotNull(message = "Points is required")
         @Positive(message = "Points must be positive")
         private Double points;
+        
+        private Integer position;
     }
 }

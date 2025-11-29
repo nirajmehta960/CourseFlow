@@ -18,15 +18,20 @@ import java.util.List;
 public class SubmissionRequest {
     
     /**
-     * Text answer for the submission (optional).
+     * Submission status: DRAFT or SUBMITTED.
      */
-    private String textAnswer;
+    private com.courseflow.assignments.model.Submission.SubmissionStatus status;
     
     /**
-     * List of attachment file names or URLs (future: file uploads).
+     * Text body of the submission (optional).
+     */
+    private String bodyText;
+    
+    /**
+     * List of file URLs (for uploaded files, base64 encoded for now).
      */
     @Builder.Default
-    private List<String> attachments = new ArrayList<>();
+    private List<String> fileUrls = new ArrayList<>();
 }
 
 

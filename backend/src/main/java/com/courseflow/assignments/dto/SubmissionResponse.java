@@ -22,10 +22,11 @@ public class SubmissionResponse {
     private String courseId;
     private String assignmentId;
     private String studentId;
-    private String textAnswer;
+    private com.courseflow.assignments.model.Submission.SubmissionStatus status;
+    private String bodyText;
     
     @Builder.Default
-    private List<String> attachments = new ArrayList<>();
+    private List<String> fileUrls = new ArrayList<>();
     
     private Instant submittedAt;
     private GradeInfo grade;
@@ -38,7 +39,7 @@ public class SubmissionResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class GradeInfo {
-        private Double score;
+        private Double pointsAwarded;
         private String feedback;
         private String gradedBy;
         private Instant gradedAt;

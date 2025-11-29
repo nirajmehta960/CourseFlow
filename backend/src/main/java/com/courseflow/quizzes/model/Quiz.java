@@ -40,6 +40,11 @@ public class Quiz {
     private Integer timeLimitMinutes;
     
     /**
+     * Due date and time for the quiz (optional).
+     */
+    private Instant dueAt;
+    
+    /**
      * Whether the quiz is published and visible to students.
      */
     @Builder.Default
@@ -110,8 +115,9 @@ public class Quiz {
      * Question type enumeration.
      */
     public enum QuestionType {
-        MCQ,    // Multiple Choice Question
-        TF,     // True/False
-        SHORT   // Short Answer
+        MCQ,           // Multiple Choice Question (single answer)
+        MULTI_SELECT,  // Multiple Select (multiple answers)
+        TRUE_FALSE,    // True/False
+        SHORT_ANSWER   // Short Answer
     }
 }

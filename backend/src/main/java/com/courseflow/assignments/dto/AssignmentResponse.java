@@ -19,9 +19,14 @@ public class AssignmentResponse {
     private String id;
     private String courseId;
     private String title;
+    /**
+     * Rich text description as HTML.
+     */
     private String description;
-    private Instant dueDate;
     private Double points;
+    private Instant dueAt;
+    private Instant availableFrom;
+    private Instant availableUntil;
     private Boolean published;
     private String createdBy;
     private Instant createdAt;

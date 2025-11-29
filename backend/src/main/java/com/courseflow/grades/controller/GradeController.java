@@ -3,12 +3,16 @@ package com.courseflow.grades.controller;
 import com.courseflow.auth.service.AuthService;
 import com.courseflow.common.dto.ApiResponse;
 import com.courseflow.common.error.ApiException;
+import com.courseflow.common.security.RequireInstructor;
 import com.courseflow.enrollments.service.EnrollmentService;
 import com.courseflow.grades.dto.GradebookResponse;
+import com.courseflow.grades.dto.GradebookViewResponse;
+import com.courseflow.grades.dto.GradeOverrideRequest;
 import com.courseflow.grades.service.GradebookService;
 import com.courseflow.users.model.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -52,7 +56,7 @@ public class GradeController {
         
         // Check permission: must be instructor/TA of the course or admin
         boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
-        boolean isAdmin = currentUser.getRole() == User.UserRole.ADMIN;
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
         
         if (!isInstructor && !isAdmin) {
             throw new ApiException("INSUFFICIENT_PERMISSIONS", 
@@ -75,7 +79,7 @@ public class GradeController {
         
         // Check permission: must be instructor/TA of the course or admin
         boolean isInstructor = enrollmentService.checkInstructorRole(courseId, currentUser.getId());
-        boolean isAdmin = currentUser.getRole() == User.UserRole.ADMIN;
+        boolean isAdmin = currentUser.hasRole(User.UserRole.ADMIN);
         
         if (!isInstructor && !isAdmin) {
             throw new ApiException("INSUFFICIENT_PERMISSIONS", 
@@ -86,6 +90,15 @@ public class GradeController {
         enrollmentService.verifyEnrollment(courseId, studentId);
         
         GradebookResponse gradebook = gradebookService.getStudentGradebook(courseId, studentId);
+        return ResponseEntity.ok(ApiResponse.success(gradebook));
+    }
+    
+    @GetMapping("/gradebook")
+    @RequireInstructor
+    @Operation(summary = "Get gradebook view", description = "Get gradebook table view for instructors (students x items matrix).")
+    public ResponseEntity<ApiResponse<GradebookViewResponse>> getGradebookView(
+            @PathVariable String courseId) {
+        GradebookViewResponse gradebook = gradebookService.getGradebookView(courseId);
         return ResponseEntity.ok(ApiResponse.success(gradebook));
     }
 }

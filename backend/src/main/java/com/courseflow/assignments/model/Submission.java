@@ -39,15 +39,21 @@ public class Submission {
     private String studentId;
     
     /**
-     * Text answer for the submission (optional).
-     */
-    private String textAnswer;
-    
-    /**
-     * List of attachment file names or URLs (future: file uploads).
+     * Submission status: DRAFT or SUBMITTED.
      */
     @Builder.Default
-    private List<String> attachments = new ArrayList<>();
+    private SubmissionStatus status = SubmissionStatus.DRAFT;
+    
+    /**
+     * Text body of the submission (optional).
+     */
+    private String bodyText;
+    
+    /**
+     * List of file URLs (for uploaded files).
+     */
+    @Builder.Default
+    private List<String> fileUrls = new ArrayList<>();
     
     @CreatedDate
     private Instant submittedAt;
@@ -58,6 +64,14 @@ public class Submission {
     private Grade grade;
     
     /**
+     * Submission status enum.
+     */
+    public enum SubmissionStatus {
+        DRAFT,
+        SUBMITTED
+    }
+    
+    /**
      * Grade information nested object.
      */
     @Data
@@ -66,9 +80,9 @@ public class Submission {
     @AllArgsConstructor
     public static class Grade {
         /**
-         * Score received by the student.
+         * Points awarded (out of assignment points).
          */
-        private Double score;
+        private Double pointsAwarded;
         
         /**
          * Feedback from the grader.

@@ -57,9 +57,28 @@ public class QuizAttempt {
     private Instant submittedAt;
     
     /**
+     * Attempt status: IN_PROGRESS or SUBMITTED.
+     */
+    @Builder.Default
+    private AttemptStatus status = AttemptStatus.IN_PROGRESS;
+    
+    /**
      * Score received by the student (calculated on submission).
      */
     private Double score;
+    
+    /**
+     * Timestamp when the attempt was graded (for short answer questions that need review).
+     */
+    private Instant gradedAt;
+    
+    /**
+     * Attempt status enumeration.
+     */
+    public enum AttemptStatus {
+        IN_PROGRESS,
+        SUBMITTED
+    }
     
     /**
      * Answer provided for a question.
