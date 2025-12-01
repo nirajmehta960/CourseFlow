@@ -80,7 +80,7 @@ const CourseModules = () => {
   useEffect(() => {
     const fetchModules = async () => {
       if (!courseId) return;
-      
+
       try {
         setLoading(true);
         const response = await getModules(courseId);
@@ -107,7 +107,7 @@ const CourseModules = () => {
   // Helper function to save modules to backend
   const saveModules = async (updatedModules: Module[]) => {
     if (!courseId) return;
-    
+
     try {
       // Convert to backend format
       const backendModules = updatedModules.map((module, index) => ({
@@ -184,11 +184,11 @@ const CourseModules = () => {
 
   const handleSaveModuleTitle = async (moduleId: string) => {
     if (!editingTitle.trim()) return;
-    
+
     const updatedModules = modules.map((m) =>
       m.moduleId === moduleId ? { ...m, title: editingTitle } : m
     );
-    
+
     try {
       await saveModules(updatedModules);
       setEditingModuleId(null);
@@ -220,18 +220,18 @@ const CourseModules = () => {
   const handleToggleModulePublish = async (moduleId: string) => {
     const module = modules.find((m) => m.moduleId === moduleId);
     if (!module) return;
-    
+
     const newPublishedState = !module.items.some(i => i.published);
-    
+
     const updatedModules = modules.map((m) =>
       m.moduleId === moduleId
         ? {
-            ...m,
-            items: m.items.map((item) => ({ ...item, published: newPublishedState })),
-          }
+          ...m,
+          items: m.items.map((item) => ({ ...item, published: newPublishedState })),
+        }
         : m
     );
-    
+
     try {
       await saveModules(updatedModules);
       toast({
@@ -249,14 +249,14 @@ const CourseModules = () => {
     const updatedModules = modules.map((m) =>
       m.moduleId === moduleId
         ? {
-            ...m,
-            items: m.items.map((item) =>
-              item.itemId === itemId ? { ...item, published: !item.published } : item
-            ),
-          }
+          ...m,
+          items: m.items.map((item) =>
+            item.itemId === itemId ? { ...item, published: !item.published } : item
+          ),
+        }
         : m
     );
-    
+
     try {
       await saveModules(updatedModules);
     } catch (error) {
@@ -271,19 +271,19 @@ const CourseModules = () => {
 
   const handleSaveNewLesson = async () => {
     if (!newLessonTitle.trim() || !addLessonModuleId || !courseId) return;
-    
+
     try {
       await addModuleItem(courseId, addLessonModuleId, {
         title: newLessonTitle,
         type: "DOC",
         published: false,
       });
-      
+
       // Refresh modules
       const response = await getModules(courseId);
       const sortedModules = [...response.modules].sort((a, b) => a.position - b.position);
       setModules(sortedModules);
-      
+
       toast({ title: "Lesson added", description: "New lesson has been created." });
       setAddLessonModuleId(null);
       setNewLessonTitle("");
@@ -299,22 +299,22 @@ const CourseModules = () => {
 
   const handleAddModule = async () => {
     if (!courseId) return;
-    
+
     try {
       const response = await addModule(courseId, {
         title: `New Module ${modules.length + 1}`,
         position: modules.length,
       });
-      
+
       // Sort modules by position
       const sortedModules = [...response.modules].sort((a, b) => a.position - b.position);
       setModules(sortedModules);
-      
+
       const newModule = sortedModules[sortedModules.length - 1];
       setExpandedModules((prev) => [...prev, newModule.moduleId]);
       setEditingModuleId(newModule.moduleId);
       setEditingTitle(newModule.title);
-      
+
       toast({ title: "Module created", description: "New module has been added." });
     } catch (error) {
       console.error("Failed to add module:", error);
@@ -331,7 +331,7 @@ const CourseModules = () => {
       ...m,
       items: m.items.map((item) => ({ ...item, published: true })),
     }));
-    
+
     try {
       await saveModules(updatedModules);
       toast({ title: "All modules published", description: "All modules are now visible to students." });
@@ -456,8 +456,8 @@ const CourseModules = () => {
           const hasPublishedItems = module.items.some(i => i.published);
 
           return (
-            <Card 
-              key={module.moduleId} 
+            <Card
+              key={module.moduleId}
               className={cn(
                 "overflow-hidden transition-all",
                 !hasPublishedItems && "opacity-70"
@@ -516,8 +516,8 @@ const CourseModules = () => {
                       <Badge
                         className={cn(
                           "text-xs shrink-0",
-                          hasPublishedItems 
-                            ? "bg-success/10 text-success border-success/20" 
+                          hasPublishedItems
+                            ? "bg-success/10 text-success border-success/20"
                             : "bg-muted text-muted-foreground"
                         )}
                       >
@@ -601,7 +601,7 @@ const CourseModules = () => {
                       <div
                         key={item.itemId}
                         className={cn(
-                          "flex items-center gap-4 py-4 px-5 pl-16 hover:bg-muted/20 transition-colors group",
+                          "flex items-center gap-3 sm:gap-4 py-4 px-3 sm:px-5 pl-12 sm:pl-16 hover:bg-muted/20 transition-colors group",
                           !item.published && "opacity-60"
                         )}
                       >
@@ -653,7 +653,7 @@ const CourseModules = () => {
 
                   {/* Add Lesson Row */}
                   {addLessonModuleId === module.moduleId && (
-                    <div className="flex items-center gap-3 py-3 px-5 pl-16 bg-muted/20">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 py-3 px-3 sm:px-5 pl-12 sm:pl-16 bg-muted/20">
                       <Input
                         value={newLessonTitle}
                         onChange={(e) => setNewLessonTitle(e.target.value)}
@@ -678,7 +678,7 @@ const CourseModules = () => {
                   {isFaculty && addLessonModuleId !== module.moduleId && (
                     <button
                       onClick={() => handleAddLesson(module.moduleId)}
-                      className="w-full flex items-center gap-3 py-3 px-5 pl-16 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+                      className="w-full flex items-center gap-3 py-3 px-3 sm:px-5 pl-12 sm:pl-16 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
                     >
                       <Plus className="h-4 w-4" />
                       Add lesson or content
@@ -693,8 +693,8 @@ const CourseModules = () => {
 
       {/* Add Module Button */}
       {isFaculty && (
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="w-full mt-6 border-dashed border-2 h-14 text-muted-foreground hover:text-foreground hover:border-primary hover:bg-primary/5"
           onClick={handleAddModule}
         >

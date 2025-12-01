@@ -21,11 +21,12 @@ export const useCoursePermissions = () => {
         return;
       }
 
-      // Check if user is global admin
-      if (user.role === 'ADMIN') {
-        setIsInstructor(true);
-        setLoading(false);
-        return;
+      // Check if user is global admin or has instructor/TA role
+      if (user.roles?.includes('ADMIN') || 
+          user.roles?.includes('INSTRUCTOR') || 
+          user.roles?.includes('TA')) {
+        // Still need to check course-level permissions
+        // Admin/Instructor/TA can have global roles but may not be enrolled in this course
       }
 
       try {

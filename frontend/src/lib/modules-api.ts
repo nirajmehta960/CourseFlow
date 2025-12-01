@@ -1,67 +1,82 @@
 /**
- * Modules API functions
+ * Modules API functions (Canvas-like structure)
  */
 
 import { apiFetch, ApiResponse } from './api';
 
-export type ModuleItemType = 'VIDEO' | 'DOC' | 'LINK' | 'ASSIGNMENT' | 'QUIZ';
+export type ModuleItemType = 'PAGE' | 'ASSIGNMENT' | 'QUIZ' | 'FILE' | 'URL';
 
 export interface ModuleItem {
-  itemId: string;
+  id: string;
+  moduleId: string;
+  courseId: string;
   type: ModuleItemType;
   title: string;
+  contentRefId?: string;
   url?: string;
-  dueDate?: string;
-  published: boolean;
-}
-
-export interface Module {
-  moduleId: string;
-  title: string;
   position: number;
-  items: ModuleItem[];
-}
-
-export interface ModuleResponse {
-  courseId: string;
-  modules: Module[];
+  published: boolean;
+  createdAt: string;
   updatedAt: string;
 }
 
-export interface UpdateModulesRequest {
-  modules: {
-    moduleId: string;
-    title: string;
-    position: number;
-    items: {
-      itemId: string;
-      type: ModuleItemType;
-      title: string;
-      url?: string;
-      dueDate?: string;
-      published: boolean;
-    }[];
-  }[];
-}
-
-export interface AddModuleRequest {
+export interface Module {
+  id: string;
+  courseId: string;
   title: string;
   position: number;
+  published: boolean;
+  unlockAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  items: ModuleItem[];
 }
 
-export interface AddModuleItemRequest {
+export interface ModulesResponse {
+  modules: Module[];
+}
+
+export interface CreateModuleRequest {
+  title: string;
+  position?: number;
+  published?: boolean;
+  unlockAt?: string;
+}
+
+export interface UpdateModuleRequest {
+  title?: string;
+  position?: number;
+  published?: boolean;
+  unlockAt?: string;
+}
+
+export interface CreateModuleItemRequest {
   title: string;
   type: ModuleItemType;
+  contentRefId?: string;
   url?: string;
-  dueDate?: string;
+  position?: number;
   published?: boolean;
+}
+
+export interface UpdateModuleItemRequest {
+  title?: string;
+  position?: number;
+  published?: boolean;
+  contentRefId?: string;
+  url?: string;
+}
+
+export interface ReorderRequest {
+  moduleOrder: string[];
+  itemOrders: Record<string, string[]>;
 }
 
 /**
  * Get modules for a course
  */
-export const getModules = async (courseId: string): Promise<ModuleResponse> => {
-  const response = await apiFetch<ModuleResponse>(`/courses/${courseId}/modules`);
+export const getModules = async (courseId: string): Promise<ModulesResponse> => {
+  const response = await apiFetch<ModulesResponse>(`/courses/${courseId}/modules`);
   
   if (!response.data) {
     throw new Error('Failed to get modules');
@@ -71,61 +86,121 @@ export const getModules = async (courseId: string): Promise<ModuleResponse> => {
 };
 
 /**
- * Update all modules for a course (replace entire tree)
+ * Create a new module
  */
-export const updateModules = async (
+export const createModule = async (
   courseId: string,
-  data: UpdateModulesRequest
-): Promise<ModuleResponse> => {
-  const response = await apiFetch<ModuleResponse>(`/courses/${courseId}/modules`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-
-  if (!response.data) {
-    throw new Error('Failed to update modules');
-  }
-
-  return response.data;
-};
-
-/**
- * Add a new module to a course
- */
-export const addModule = async (
-  courseId: string,
-  data: AddModuleRequest
-): Promise<ModuleResponse> => {
-  const response = await apiFetch<ModuleResponse>(`/courses/${courseId}/modules`, {
+  data: CreateModuleRequest
+): Promise<Module> => {
+  const response = await apiFetch<Module>(`/courses/${courseId}/modules`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
   if (!response.data) {
-    throw new Error('Failed to add module');
+    throw new Error('Failed to create module');
   }
 
   return response.data;
 };
 
 /**
- * Add a new item to a module
+ * Update a module
  */
-export const addModuleItem = async (
-  courseId: string,
+export const updateModule = async (
   moduleId: string,
-  data: AddModuleItemRequest
-): Promise<ModuleResponse> => {
-  const response = await apiFetch<ModuleResponse>(
-    `/courses/${courseId}/modules/${moduleId}/items`,
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }
-  );
+  data: UpdateModuleRequest
+): Promise<Module> => {
+  const response = await apiFetch<Module>(`/courses/modules/${moduleId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 
   if (!response.data) {
-    throw new Error('Failed to add module item');
+    throw new Error('Failed to update module');
+  }
+
+  return response.data;
+};
+
+/**
+ * Delete a module
+ */
+export const deleteModule = async (moduleId: string): Promise<void> => {
+  const response = await apiFetch(`/courses/modules/${moduleId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.success) {
+    throw new Error(response.message || 'Failed to delete module');
+  }
+};
+
+/**
+ * Create a new module item
+ */
+export const createModuleItem = async (
+  moduleId: string,
+  data: CreateModuleItemRequest
+): Promise<ModuleItem> => {
+  const response = await apiFetch<ModuleItem>(`/courses/modules/${moduleId}/items`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.data) {
+    throw new Error('Failed to create module item');
+  }
+
+  return response.data;
+};
+
+/**
+ * Update a module item
+ */
+export const updateModuleItem = async (
+  itemId: string,
+  data: UpdateModuleItemRequest
+): Promise<ModuleItem> => {
+  const response = await apiFetch<ModuleItem>(`/courses/module-items/${itemId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.data) {
+    throw new Error('Failed to update module item');
+  }
+
+  return response.data;
+};
+
+/**
+ * Delete a module item
+ */
+export const deleteModuleItem = async (itemId: string): Promise<void> => {
+  const response = await apiFetch(`/courses/module-items/${itemId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.success) {
+    throw new Error(response.message || 'Failed to delete module item');
+  }
+};
+
+/**
+ * Reorder modules and items
+ */
+export const reorderModules = async (
+  courseId: string,
+  data: ReorderRequest
+): Promise<ModulesResponse> => {
+  const response = await apiFetch<ModulesResponse>(`/courses/${courseId}/modules/reorder`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.data) {
+    throw new Error('Failed to reorder modules');
   }
 
   return response.data;

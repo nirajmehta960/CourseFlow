@@ -11,9 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { signUp } from "@/lib/auth-api";
-import { getErrorMessage } from "@/lib/api";
-import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
 const SignUp = () => {
@@ -26,50 +23,32 @@ const SignUp = () => {
     password: "",
     role: "",
   });
-  const navigate = useNavigate();
-  const { refreshUser } = useAuth();
+  const { signup } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.role) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
       return;
     }
 
     try {
       setLoading(true);
       // Map frontend role to backend role
-      const roleMap: Record<string, "STUDENT" | "INSTRUCTOR" | "ADMIN"> = {
+      const roleMap: Record<string, "STUDENT" | "INSTRUCTOR" | "TA" | "ADMIN"> = {
         student: "STUDENT",
         faculty: "INSTRUCTOR",
-        ta: "STUDENT", // TAs are students in the backend
+        ta: "TA",
       };
       
-      await signUp({
+      await signup({
         name: `${formData.firstName} ${formData.lastName}`,
         email: formData.email,
         password: formData.password,
         role: roleMap[formData.role] || "STUDENT",
       });
-      
-      await refreshUser(); // Refresh user context
-      toast({
-        title: "Success",
-        description: "Account created successfully",
-      });
-      navigate("/dashboard");
     } catch (error) {
-      console.error("Sign up error:", error);
-      toast({
-        title: "Error",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
+      // Error handling is done in AuthContext
     } finally {
       setLoading(false);
     }

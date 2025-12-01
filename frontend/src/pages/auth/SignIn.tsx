@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { signIn } from "@/lib/auth-api";
-import { getErrorMessage } from "@/lib/api";
-import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
 const SignIn = () => {
@@ -14,37 +11,20 @@ const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { refreshUser } = useAuth();
+  const { signin } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please enter both email and password",
-        variant: "destructive",
-      });
       return;
     }
 
     try {
       setLoading(true);
-      await signIn({ email, password });
-      await refreshUser(); // Refresh user context
-      toast({
-        title: "Success",
-        description: "Signed in successfully",
-      });
-      navigate("/dashboard");
+      await signin({ email, password });
     } catch (error) {
-      console.error("Sign in error:", error);
-      toast({
-        title: "Error",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
+      // Error handling is done in AuthContext
     } finally {
       setLoading(false);
     }

@@ -36,6 +36,9 @@ import { getMyGradebook, GradeItem as ApiGradeItem } from "@/lib/grades-api";
 import { getErrorMessage } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
+
 
 interface GradeItem {
   id: string;
@@ -47,6 +50,7 @@ interface GradeItem {
   score: string | null;
   maxScore: number;
   percentage?: number;
+  feedback?: string | null;
 }
 
 const categoryWeights = [
@@ -94,6 +98,7 @@ const CourseGrades = () => {
             score: item.score !== null ? item.score.toString() : null,
             maxScore: item.points || 0,
             percentage,
+            feedback: item.feedback || null,
           };
         });
         
@@ -155,8 +160,21 @@ const CourseGrades = () => {
 
   if (loading) {
     return (
-      <div className="p-4 sm:p-6 md:p-8 flex items-center justify-center min-h-[400px] w-full">
-        <p className="text-muted-foreground">Loading grades...</p>
+      <div className="p-4 sm:p-6 md:p-8 w-full min-w-0 overflow-x-hidden">
+        <div className="mb-8 space-y-4">
+          <Skeleton className="h-8 w-32" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <div className="space-y-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-16" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -280,7 +298,18 @@ const CourseGrades = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {gradeItems.map((item) => (
+                  {gradeItems.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-64">
+                        <EmptyState
+                          icon={<Award className="h-12 w-12" />}
+                          title="No grades yet"
+                          description="You don't have any graded assignments or quizzes yet. Grades will appear here once they are posted."
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    gradeItems.map((item) => (
                     <TableRow key={item.id} className="hover:bg-muted/20 group cursor-pointer">
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -312,18 +341,25 @@ const CourseGrades = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         {item.score ? (
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="font-semibold text-foreground">
-                              {item.score}/{item.maxScore}
-                            </span>
-                            {item.percentage && (
-                              <span className={cn(
-                                "text-xs font-medium px-2 py-0.5 rounded-full",
-                                item.percentage >= 90 && "bg-success/10 text-success",
-                                item.percentage >= 70 && item.percentage < 90 && "bg-warning/10 text-warning",
-                                item.percentage < 70 && "bg-destructive/10 text-destructive"
-                              )}>
-                                {item.percentage}%
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground">
+                                {item.score}/{item.maxScore}
+                              </span>
+                              {item.percentage && (
+                                <span className={cn(
+                                  "text-xs font-medium px-2 py-0.5 rounded-full",
+                                  item.percentage >= 90 && "bg-success/10 text-success",
+                                  item.percentage >= 70 && item.percentage < 90 && "bg-warning/10 text-warning",
+                                  item.percentage < 70 && "bg-destructive/10 text-destructive"
+                                )}>
+                                  {item.percentage}%
+                                </span>
+                              )}
+                            </div>
+                            {item.feedback && (
+                              <span className="text-xs text-muted-foreground text-right max-w-xs truncate" title={item.feedback}>
+                                {item.feedback}
                               </span>
                             )}
                           </div>
@@ -335,7 +371,8 @@ const CourseGrades = () => {
                         <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                       </TableCell>
                     </TableRow>
-                  ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </CardContent>

@@ -29,6 +29,9 @@ export const CreateCourseDialog = ({ onCourseCreated }: CreateCourseDialogProps)
     code: "",
     term: "",
     section: "",
+    description: "",
+    coverImageUrl: "",
+    status: "DRAFT",
     published: false,
   });
   const { toast } = useToast();
@@ -58,6 +61,9 @@ export const CreateCourseDialog = ({ onCourseCreated }: CreateCourseDialogProps)
         code: "",
         term: "",
         section: "",
+        description: "",
+        coverImageUrl: "",
+        status: "DRAFT",
         published: false,
       });
       onCourseCreated?.();
@@ -143,12 +149,36 @@ export const CreateCourseDialog = ({ onCourseCreated }: CreateCourseDialogProps)
                 />
               </div>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description (optional)</Label>
+              <Input
+                id="description"
+                placeholder="Course description"
+                value={formData.description || ""}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                disabled={isLoading}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="coverImageUrl">Cover Image URL (optional)</Label>
+              <Input
+                id="coverImageUrl"
+                placeholder="https://example.com/image.jpg"
+                value={formData.coverImageUrl || ""}
+                onChange={(e) => setFormData({ ...formData, coverImageUrl: e.target.value })}
+                disabled={isLoading}
+              />
+            </div>
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="published"
-                checked={formData.published}
+                checked={formData.status === "PUBLISHED" || formData.published}
                 onCheckedChange={(checked) =>
-                  setFormData({ ...formData, published: checked as boolean })
+                  setFormData({ 
+                    ...formData, 
+                    published: checked as boolean,
+                    status: checked ? "PUBLISHED" : "DRAFT"
+                  })
                 }
                 disabled={isLoading}
               />

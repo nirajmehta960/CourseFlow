@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect, useRef } from "react";
 import Logo from "./Logo";
 import { useAuth } from "@/contexts/AuthContext";
+import NotificationBell from "@/components/NotificationBell";
 
 const Topbar = () => {
   const { user, logout } = useAuth();
@@ -35,15 +36,16 @@ const Topbar = () => {
   };
 
   return (
-    <section className="sticky top-0 z-40 md:hidden bg-card border-b border-border w-full">
+    <section className="sticky top-0 z-40 bg-card border-b border-border w-full">
       <div className="flex-between py-4 px-5">
-        <Link to="/dashboard" className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <Logo collapsed={false} />
-        </Link>
+        </div>
 
         <div className="flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <div className="relative" ref={menuRef}>
                 <Button
                   variant="ghost"

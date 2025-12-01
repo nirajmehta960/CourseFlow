@@ -8,8 +8,10 @@ export interface Assignment {
   id: string;
   courseId: string;
   title: string;
-  description?: string;
-  dueDate: string;
+  description?: string; // HTML
+  dueAt: string;
+  availableFrom?: string;
+  availableUntil?: string;
   points: number;
   published: boolean;
   createdBy: string;
@@ -22,11 +24,12 @@ export interface Submission {
   courseId: string;
   assignmentId: string;
   studentId: string;
-  textAnswer?: string;
-  attachments: string[];
-  submittedAt: string;
+  status: 'DRAFT' | 'SUBMITTED';
+  bodyText?: string;
+  fileUrls: string[];
+  submittedAt?: string;
   grade?: {
-    score: number;
+    pointsAwarded: number;
     feedback?: string;
     gradedBy: string;
     gradedAt: string;
@@ -35,20 +38,34 @@ export interface Submission {
 
 export interface AssignmentRequest {
   title: string;
-  description?: string;
-  dueDate?: string;
+  description?: string; // HTML
+  dueAt?: string;
+  availableFrom?: string;
+  availableUntil?: string;
   points: number;
   published?: boolean;
 }
 
 export interface SubmissionRequest {
-  textAnswer?: string;
-  attachments?: string[];
+  status?: 'DRAFT' | 'SUBMITTED';
+  bodyText?: string;
+  fileUrls?: string[];
 }
 
 export interface GradeSubmissionRequest {
-  score: number;
+  pointsAwarded?: number;
   feedback?: string;
+}
+
+export interface FileUploadRequest {
+  fileName: string;
+  base64Data: string; // data:image/png;base64,...
+}
+
+export interface FileUploadResponse {
+  url: string;
+  fileName: string;
+  fileSize: number;
 }
 
 /**
@@ -65,10 +82,10 @@ export const getAssignments = async (courseId: string): Promise<Assignment[]> =>
 };
 
 /**
- * Get a single assignment by ID
+ * Get a single assignment by ID (without courseId)
  */
-export const getAssignment = async (courseId: string, assignmentId: string): Promise<Assignment> => {
-  const response = await apiFetch<Assignment>(`/courses/${courseId}/assignments/${assignmentId}`);
+export const getAssignment = async (assignmentId: string): Promise<Assignment> => {
+  const response = await apiFetch<Assignment>(`/assignments/${assignmentId}`);
   
   if (!response.data) {
     throw new Error('Failed to get assignment');
@@ -80,11 +97,24 @@ export const getAssignment = async (courseId: string, assignmentId: string): Pro
 /**
  * Get all submissions for an assignment (instructor only)
  */
-export const getSubmissions = async (courseId: string, assignmentId: string): Promise<Submission[]> => {
-  const response = await apiFetch<Submission[]>(`/courses/${courseId}/assignments/${assignmentId}/submissions`);
+export const getSubmissions = async (assignmentId: string): Promise<Submission[]> => {
+  const response = await apiFetch<Submission[]>(`/assignments/${assignmentId}/submissions`);
   
   if (!response.data) {
     throw new Error('Failed to get submissions');
+  }
+
+  return response.data;
+};
+
+/**
+ * Get student's own submission for an assignment
+ */
+export const getMySubmission = async (assignmentId: string): Promise<Submission | null> => {
+  const response = await apiFetch<Submission>(`/assignments/${assignmentId}/my-submission`);
+  
+  if (!response.data) {
+    return null;
   }
 
   return response.data;
@@ -107,14 +137,13 @@ export const createAssignment = async (courseId: string, data: AssignmentRequest
 };
 
 /**
- * Update an assignment
+ * Update an assignment (without courseId)
  */
 export const updateAssignment = async (
-  courseId: string,
   assignmentId: string,
   data: AssignmentRequest
 ): Promise<Assignment> => {
-  const response = await apiFetch<Assignment>(`/courses/${courseId}/assignments/${assignmentId}`, {
+  const response = await apiFetch<Assignment>(`/assignments/${assignmentId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
@@ -136,14 +165,13 @@ export const deleteAssignment = async (courseId: string, assignmentId: string): 
 };
 
 /**
- * Submit an assignment
+ * Submit an assignment (without courseId)
  */
 export const submitAssignment = async (
-  courseId: string,
   assignmentId: string,
   data: SubmissionRequest
 ): Promise<Submission> => {
-  const response = await apiFetch<Submission>(`/courses/${courseId}/assignments/${assignmentId}/submit`, {
+  const response = await apiFetch<Submission>(`/assignments/${assignmentId}/submit`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -156,24 +184,35 @@ export const submitAssignment = async (
 };
 
 /**
- * Grade a submission
+ * Grade a submission (without courseId/assignmentId)
  */
 export const gradeSubmission = async (
-  courseId: string,
-  assignmentId: string,
   submissionId: string,
   data: GradeSubmissionRequest
 ): Promise<Submission> => {
-  const response = await apiFetch<Submission>(
-    `/courses/${courseId}/assignments/${assignmentId}/submissions/${submissionId}/grade`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }
-  );
+  const response = await apiFetch<Submission>(`/submissions/${submissionId}/grade`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 
   if (!response.data) {
     throw new Error('Failed to grade submission');
+  }
+
+  return response.data;
+};
+
+/**
+ * Upload a file (base64 for now)
+ */
+export const uploadFile = async (data: FileUploadRequest): Promise<FileUploadResponse> => {
+  const response = await apiFetch<FileUploadResponse>(`/files/upload`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.data) {
+    throw new Error('Failed to upload file');
   }
 
   return response.data;

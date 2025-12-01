@@ -117,6 +117,32 @@ Most platforms allow you to specify the root directory for deployment, making it
 - Spring Security + JWT
 - Maven
 
+## 📝 Modules System
+
+The modules system follows a Canvas-like structure with separate Module and ModuleItem entities:
+
+### Backend Endpoints
+- `GET /api/courses/:id/modules` - Get all modules with items
+- `POST /api/courses/:id/modules` - Create module
+- `PATCH /api/modules/:moduleId` - Update module
+- `DELETE /api/modules/:moduleId` - Delete module
+- `POST /api/modules/:moduleId/items` - Create module item
+- `PATCH /api/module-items/:itemId` - Update module item
+- `DELETE /api/module-items/:itemId` - Delete module item
+- `POST /api/courses/:id/modules/reorder` - Reorder modules and items
+
+### Frontend Features
+- Canvas-like collapsible modules
+- Drag-drop reordering (HTML5 drag-drop API)
+- Publish/unpublish modules and items
+- Lock/unlock dates for modules
+- Item icons by type (PAGE, ASSIGNMENT, QUIZ, FILE, URL)
+
+**Note:** For enhanced drag-drop experience, you can install `@dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities`:
+```bash
+cd frontend && npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+```
+
 ## 📝 License
 
 MIT

@@ -25,6 +25,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useCoursePermissions } from "@/hooks/useCoursePermissions";
+import EmptyState from "@/components/EmptyState";
 
 interface Quiz {
   id: string;
@@ -407,23 +408,25 @@ const CourseQuizzes = () => {
 
       {/* Empty State */}
       {quizzes.length === 0 && (
-        <div className="text-center py-16">
-          <HelpCircle className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">No quizzes yet</h3>
-          <p className="text-muted-foreground mb-6">
-            {isFaculty 
-              ? "Create your first quiz to get started" 
-              : "Quizzes will appear here when available"}
-          </p>
-          {isFaculty && (
-            <Link to={`/courses/${courseId}/quizzes/new`}>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Quiz
-              </Button>
-            </Link>
-          )}
-        </div>
+        <EmptyState
+          icon={<HelpCircle className="h-12 w-12" />}
+          title="No quizzes yet"
+          description={
+            isFaculty
+              ? "Create your first quiz to get started."
+              : "Quizzes will appear here when available."
+          }
+          action={
+            isFaculty && courseId
+              ? {
+                  label: "Create Quiz",
+                  onClick: () => {
+                    window.location.href = `/courses/${courseId}/quizzes/new`;
+                  },
+                }
+              : undefined
+          }
+        />
       )}
     </div>
   );

@@ -10,6 +10,10 @@ export interface Course {
   code: string;
   term: string;
   section: string;
+  description?: string;
+  coverImageUrl?: string;
+  status?: 'DRAFT' | 'PUBLISHED';
+  createdBy?: string;
   instructorIds: string[];
   published: boolean;
   createdAt: string;
@@ -21,6 +25,9 @@ export interface CourseRequest {
   code: string;
   term: string;
   section: string;
+  description?: string;
+  coverImageUrl?: string;
+  status?: 'DRAFT' | 'PUBLISHED';
   published?: boolean;
 }
 
@@ -100,12 +107,32 @@ export const updateCourse = async (
 
 export interface CoursePeopleResponse {
   people: {
+    enrollmentId: string;
     userId: string;
     name: string;
     email: string;
     courseRole: 'STUDENT' | 'TA' | 'INSTRUCTOR';
-    status: 'ACTIVE' | 'DROPPED';
+    status: 'ACTIVE' | 'INVITED' | 'DROPPED';
   }[];
+}
+
+export interface EnrollByEmailRequest {
+  email: string;
+  role?: 'STUDENT' | 'TA' | 'INSTRUCTOR';
+}
+
+export interface UpdateEnrollmentRequest {
+  role?: 'STUDENT' | 'TA' | 'INSTRUCTOR';
+  status?: 'ACTIVE' | 'INVITED' | 'DROPPED';
+}
+
+export interface Enrollment {
+  id: string;
+  courseId: string;
+  userId: string;
+  courseRole: 'STUDENT' | 'TA' | 'INSTRUCTOR';
+  status: 'ACTIVE' | 'INVITED' | 'DROPPED';
+  createdAt: string;
 }
 
 /**
@@ -131,6 +158,58 @@ export const selfEnrollInCourse = async (courseId: string): Promise<void> => {
 
   if (!response.success) {
     throw new Error(response.message || 'Failed to enroll in course');
+  }
+};
+
+/**
+ * Enroll a user by email
+ */
+export const enrollByEmail = async (
+  courseId: string,
+  data: EnrollByEmailRequest
+): Promise<Enrollment> => {
+  const response = await apiFetch<Enrollment>(`/courses/${courseId}/enroll`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.data) {
+    throw new Error('Failed to enroll user');
+  }
+
+  return response.data;
+};
+
+/**
+ * Update an enrollment
+ */
+export const updateEnrollment = async (
+  courseId: string,
+  enrollmentId: string,
+  data: UpdateEnrollmentRequest
+): Promise<Enrollment> => {
+  const response = await apiFetch<Enrollment>(`/courses/${courseId}/people/${enrollmentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.data) {
+    throw new Error('Failed to update enrollment');
+  }
+
+  return response.data;
+};
+
+/**
+ * Delete a course
+ */
+export const deleteCourse = async (courseId: string): Promise<void> => {
+  const response = await apiFetch(`/courses/${courseId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.success) {
+    throw new Error(response.message || 'Failed to delete course');
   }
 };
 

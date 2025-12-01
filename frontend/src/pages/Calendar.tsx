@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -9,27 +10,27 @@ import {
   LayoutGrid,
   Filter,
 } from "lucide-react";
+import { getCalendarEvents, CalendarEvent as ApiCalendarEvent } from "@/lib/calendar-api";
+import { getMyCourses, Course } from "@/lib/courses-api";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import { format, parseISO, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
+import { Calendar as CalendarIcon } from "lucide-react";
 
 interface CalendarEvent {
-  id: number;
+  id: string;
   title: string;
-  course: string;
+  courseId: string;
+  courseCode?: string;
   courseColor: string;
-  type: "assignment" | "quiz" | "class" | "meeting" | "office-hours";
+  type: "ASSIGNMENT_DUE" | "QUIZ_DUE" | "CUSTOM";
   date: Date;
   time: string;
   endTime?: string;
+  refId?: string | null;
 }
-
-const events: CalendarEvent[] = [
-  { id: 1, title: "Quiz 3 - JavaScript Fundamentals", course: "CS5610", courseColor: "#3B82F6", type: "quiz", date: new Date(2024, 11, 22), time: "10:00 AM" },
-  { id: 2, title: "Homework #5 Due", course: "IE6700", courseColor: "#DC2626", type: "assignment", date: new Date(2024, 11, 23), time: "11:59 PM" },
-  { id: 3, title: "Lecture - Advanced Topics", course: "CS5610", courseColor: "#3B82F6", type: "class", date: new Date(2024, 11, 25), time: "5:00 PM", endTime: "8:00 PM" },
-  { id: 4, title: "Office Hours - Prof. Chen", course: "CS5610", courseColor: "#3B82F6", type: "office-hours", date: new Date(2024, 11, 26), time: "2:00 PM", endTime: "4:00 PM" },
-  { id: 5, title: "Final Project Presentation", course: "IE6700", courseColor: "#DC2626", type: "assignment", date: new Date(2024, 11, 28), time: "11:59 PM" },
-  { id: 6, title: "SQL Workshop", course: "IE6700", courseColor: "#DC2626", type: "meeting", date: new Date(2024, 11, 20), time: "6:00 PM", endTime: "8:00 PM" },
-  { id: 7, title: "Quiz #4 - Database Design", course: "IE6700", courseColor: "#DC2626", type: "quiz", date: new Date(2024, 11, 21), time: "10:00 AM" },
-];
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const months = [
@@ -37,10 +38,91 @@ const months = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+// Generate a color based on course ID
+const getCourseColor = (courseId: string): string => {
+  const colors = [
+    "#3B82F6", // blue
+    "#DC2626", // red
+    "#10B981", // green
+    "#F59E0B", // amber
+    "#8B5CF6", // purple
+    "#EC4899", // pink
+    "#06B6D4", // cyan
+    "#F97316", // orange
+  ];
+  let hash = 0;
+  for (let i = 0; i < courseId.length; i++) {
+    hash = courseId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 const Calendar = () => {
-  const [currentDate, setCurrentDate] = useState(new Date(2024, 11, 1));
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date(2024, 11, 22));
+  const navigate = useNavigate();
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [view, setView] = useState<"month" | "agenda">("month");
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [courses, setCourses] = useState<Map<string, Course>>(new Map());
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, [currentDate]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Get courses for course codes
+      const coursesList = await getMyCourses();
+      const coursesMap = new Map<string, Course>();
+      coursesList.forEach((course) => {
+        coursesMap.set(course.id, course);
+      });
+      setCourses(coursesMap);
+      
+      // Calculate date range for current month view
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      
+      // Fetch events for the month
+      const apiEvents = await getCalendarEvents(
+        monthStart.toISOString(),
+        monthEnd.toISOString()
+      );
+      
+      // Transform API events to calendar events
+      const transformedEvents: CalendarEvent[] = apiEvents.map((event) => {
+        const eventDate = parseISO(event.startAt);
+        const course = coursesMap.get(event.courseId);
+        
+        return {
+          id: event.id,
+          title: event.title,
+          courseId: event.courseId,
+          courseCode: course?.code || "Unknown",
+          courseColor: getCourseColor(event.courseId),
+          type: event.type,
+          date: eventDate,
+          time: format(eventDate, "h:mm a"),
+          endTime: event.endAt ? format(parseISO(event.endAt), "h:mm a") : undefined,
+          refId: event.refId,
+        };
+      });
+      
+      setEvents(transformedEvents);
+    } catch (error) {
+      console.error("Failed to fetch calendar data:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -65,6 +147,19 @@ const Calendar = () => {
         event.date.getMonth() === date.getMonth() &&
         event.date.getFullYear() === date.getFullYear()
     );
+  };
+
+  const handleEventClick = (event: CalendarEvent) => {
+    if (!event.refId) return;
+    
+    const course = courses.get(event.courseId);
+    if (!course) return;
+    
+    if (event.type === "ASSIGNMENT_DUE") {
+      navigate(`/courses/${event.courseId}/assignments/${event.refId}`);
+    } else if (event.type === "QUIZ_DUE") {
+      navigate(`/courses/${event.courseId}/quizzes/${event.refId}`);
+    }
   };
 
   const isToday = (date: Date) => {
@@ -132,15 +227,28 @@ const Calendar = () => {
               <Filter className="h-4 w-4" />
               Calendars
             </Button>
-            <Button size="sm" className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Event
-            </Button>
           </div>
         </div>
       </div>
 
-      {view === "month" ? (
+      {loading ? (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-8">
+          <div className="bg-card border border-border rounded-lg">
+            <div className="grid grid-cols-7 border-b border-border bg-muted/30">
+              {daysOfWeek.map((day) => (
+                <div key={day} className="py-3 text-center">
+                  <Skeleton className="h-4 w-12 mx-auto" />
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7">
+              {Array.from({ length: 35 }).map((_, i) => (
+                <Skeleton key={i} className="h-28 border-b border-r border-border" />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : view === "month" ? (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 w-full">
           <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
             {/* Calendar Grid */}
@@ -239,7 +347,11 @@ const Calendar = () => {
                       {selectedDateEvents.map((event) => (
                         <div
                           key={event.id}
-                          className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                          onClick={() => handleEventClick(event)}
+                          className={cn(
+                            "flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors",
+                            event.refId && "cursor-pointer"
+                          )}
                         >
                           <div
                             className="w-1 rounded-full shrink-0"
@@ -250,7 +362,7 @@ const Calendar = () => {
                               {event.title}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {event.course} · {event.time}
+                              {event.courseCode} · {event.time}
                               {event.endTime && ` - ${event.endTime}`}
                             </p>
                           </div>
@@ -258,9 +370,11 @@ const Calendar = () => {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No events scheduled
-                    </p>
+                    <EmptyState
+                      icon={<CalendarIcon className="h-8 w-8" />}
+                      title="No events scheduled"
+                      description="There are no events scheduled for this date."
+                    />
                   )}
                 </div>
               </div>
@@ -275,7 +389,11 @@ const Calendar = () => {
               monthEvents.map((event) => (
                 <div
                   key={event.id}
-                  className="flex items-start gap-4 p-4 hover:bg-muted/30 transition-colors"
+                  onClick={() => handleEventClick(event)}
+                  className={cn(
+                    "flex items-start gap-4 p-4 hover:bg-muted/30 transition-colors",
+                    event.refId && "cursor-pointer"
+                  )}
                 >
                   <div className="w-16 text-center shrink-0">
                     <p className="text-2xl font-bold text-foreground">
@@ -292,16 +410,18 @@ const Calendar = () => {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground">{event.title}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      {event.course} · {event.time}
+                      {event.courseCode} · {event.time}
                       {event.endTime && ` - ${event.endTime}`}
                     </p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No events this month</p>
-              </div>
+              <EmptyState
+                icon={<CalendarIcon className="h-12 w-12" />}
+                title="No events this month"
+                description="You don't have any calendar events scheduled for this month."
+              />
             )}
           </div>
         </div>

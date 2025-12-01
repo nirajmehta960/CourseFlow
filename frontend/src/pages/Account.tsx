@@ -26,18 +26,22 @@ import {
   Link as LinkIcon,
   ExternalLink,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Account = () => {
   const [activeTab, setActiveTab] = useState("profile");
+  const { user: authUser } = useAuth();
 
+  // Use real user data from auth context, with fallback to defaults
   const user = {
-    name: "John Doe",
-    email: "john.doe@university.edu",
+    name: authUser?.name || "User",
+    email: authUser?.email || "",
     phone: "+1 (555) 123-4567",
     location: "Boston, MA",
     timezone: "America/New_York",
     bio: "Computer Science student passionate about web development and machine learning.",
-    role: "Student",
+    role: authUser?.roles?.[0] || "STUDENT",
+    roles: authUser?.roles || ["STUDENT"],
     major: "Computer Science",
     year: "Senior",
     enrollmentDate: "Fall 2021",
@@ -47,6 +51,16 @@ const Account = () => {
       { name: "GitHub", url: "github.com/johndoe" },
       { name: "LinkedIn", url: "linkedin.com/in/johndoe" },
     ],
+  };
+  
+  // Get initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   return (
@@ -60,7 +74,7 @@ const Account = () => {
               <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-background shadow-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
                 <AvatarFallback className="text-xl sm:text-2xl bg-primary text-primary-foreground">
-                  JD
+                  {getInitials(user.name)}
                 </AvatarFallback>
               </Avatar>
               <button className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
@@ -77,7 +91,7 @@ const Account = () => {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-3">
                     <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
                       <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                      <span className="truncate">{user.major} · {user.year}</span>
+                      <span className="truncate">{user.role} · {user.major}</span>
                     </span>
                     <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
                       <MapPin className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />

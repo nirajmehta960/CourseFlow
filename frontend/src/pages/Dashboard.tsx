@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -8,165 +8,120 @@ import {
   FileText,
   MessageSquare,
   Video,
-  Bell,
   Plus,
   Calendar,
   MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Activity items grouped by date
-interface ActivityItem {
-  id: string;
-  type: "assignment" | "announcement" | "meeting" | "quiz" | "graded";
-  title: string;
-  courseName: string;
-  courseCode: string;
-  courseColor: string;
-  time?: string;
-  dueTime?: string;
-  completed?: boolean;
-  replies?: number;
-  grade?: string;
-}
+import { getNotifications, Notification } from "@/lib/notifications-api";
+import { getMyCourses, Course } from "@/lib/courses-api";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import { format, parseISO, startOfDay, isToday, isYesterday, formatDistanceToNow } from "date-fns";
+import NotificationBell from "@/components/NotificationBell";
+import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
+import { Bell } from "lucide-react";
 
 interface DayGroup {
   date: string;
-  items: ActivityItem[];
+  items: Notification[];
 }
 
-const activityByDate: DayGroup[] = [
-  {
-    date: "Friday, 20 December",
-    items: [
-      {
-        id: "1",
-        type: "graded",
-        title: "Show 1 completed item",
-        courseName: "Data Management for Analytics",
-        courseCode: "IE6700",
-        courseColor: "#DC2626",
-        completed: true,
-        grade: "Graded",
-      },
-    ],
-  },
-  {
-    date: "Saturday, 21 December",
-    items: [
-      {
-        id: "2",
-        type: "graded",
-        title: "Show 1 completed item",
-        courseName: "Data Management for Analytics",
-        courseCode: "IE6700",
-        courseColor: "#DC2626",
-        completed: true,
-        grade: "Graded",
-      },
-    ],
-  },
-  {
-    date: "Monday, 23 December",
-    items: [
-      {
-        id: "3",
-        type: "announcement",
-        title: "Reminder: SQL Workshop this evening",
-        courseName: "Data Management for Analytics",
-        courseCode: "IE6700",
-        courseColor: "#DC2626",
-        time: "14:10",
-        replies: 0,
-      },
-      {
-        id: "4",
-        type: "quiz",
-        title: "Quiz #4 on Thursday",
-        courseName: "Data Management for Analytics",
-        courseCode: "IE6700",
-        courseColor: "#DC2626",
-        time: "21:17",
-        replies: 0,
-      },
-    ],
-  },
-  {
-    date: "Wednesday, 25 December",
-    items: [
-      {
-        id: "5",
-        type: "meeting",
-        title: "Lecture Wed 05 & 07",
-        courseName: "Web Development",
-        courseCode: "CS5610",
-        courseColor: "#3B82F6",
-        dueTime: "17:00 to 20:00",
-      },
-      {
-        id: "6",
-        type: "graded",
-        title: "Show 2 completed items",
-        courseName: "Web Development",
-        courseCode: "CS5610",
-        courseColor: "#3B82F6",
-        completed: true,
-        grade: "Graded • Feedback",
-      },
-      {
-        id: "7",
-        type: "announcement",
-        title: "My Spring 26 courses",
-        courseName: "Data Management for Analytics",
-        courseCode: "IE6700",
-        courseColor: "#DC2626",
-        time: "14:29",
-        replies: 0,
-      },
-    ],
-  },
-  {
-    date: "Thursday, 26 December",
-    items: [
-      {
-        id: "8",
-        type: "graded",
-        title: "Show 1 completed item",
-        courseName: "Data Management for Analytics",
-        courseCode: "IE6700",
-        courseColor: "#DC2626",
-        completed: true,
-        grade: "Graded",
-      },
-    ],
-  },
-  {
-    date: "Friday, 27 December",
-    items: [
-      {
-        id: "9",
-        type: "meeting",
-        title: "Jose Office Hours",
-        courseName: "Web Development",
-        courseCode: "CS5610",
-        courseColor: "#3B82F6",
-        dueTime: "13:00 to 15:00",
-      },
-      {
-        id: "10",
-        type: "meeting",
-        title: "Jose OH SU1 2025",
-        courseName: "Web Development",
-        courseCode: "CS5610",
-        courseColor: "#3B82F6",
-        dueTime: "14:00 to 15:00",
-      },
-    ],
-  },
-];
+// Generate a color based on course ID
+const getCourseColor = (courseId: string): string => {
+  const colors = [
+    "#3B82F6", // blue
+    "#DC2626", // red
+    "#10B981", // green
+    "#F59E0B", // amber
+    "#8B5CF6", // purple
+    "#EC4899", // pink
+    "#06B6D4", // cyan
+    "#F97316", // orange
+  ];
+  let hash = 0;
+  for (let i = 0; i < courseId.length; i++) {
+    hash = courseId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
+// Group notifications by date
+const groupNotificationsByDate = (notifications: Notification[]): DayGroup[] => {
+  const groups: Map<string, Notification[]> = new Map();
+  
+  notifications.forEach((notification) => {
+    const date = parseISO(notification.createdAt);
+    let dateLabel: string;
+    
+    if (isToday(date)) {
+      dateLabel = "Today";
+    } else if (isYesterday(date)) {
+      dateLabel = "Yesterday";
+    } else {
+      dateLabel = format(date, "EEEE, MMMM d");
+    }
+    
+    if (!groups.has(dateLabel)) {
+      groups.set(dateLabel, []);
+    }
+    groups.get(dateLabel)!.push(notification);
+  });
+  
+  // Convert to array and sort by date (newest first)
+  return Array.from(groups.entries())
+    .map(([date, items]) => ({ date, items }))
+    .sort((a, b) => {
+      // Sort by date: Today > Yesterday > others (by date)
+      if (a.date === "Today") return -1;
+      if (b.date === "Today") return 1;
+      if (a.date === "Yesterday") return -1;
+      if (b.date === "Yesterday") return 1;
+      return parseISO(b.items[0].createdAt).getTime() - parseISO(a.items[0].createdAt).getTime();
+    });
+};
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [courses, setCourses] = useState<Map<string, Course>>(new Map());
+  const [loading, setLoading] = useState(true);
   const [expandedCompleted, setExpandedCompleted] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch courses and notifications in parallel
+      const [coursesList, notificationsData] = await Promise.all([
+        getMyCourses(),
+        getNotifications(),
+      ]);
+      
+      // Map courses
+      const coursesMap = new Map<string, Course>();
+      coursesList.forEach((course) => {
+        coursesMap.set(course.id, course);
+      });
+      setCourses(coursesMap);
+      
+      setNotifications(notificationsData);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleCompleted = (id: string) => {
     setExpandedCompleted((prev) =>
@@ -174,18 +129,30 @@ const Dashboard = () => {
     );
   };
 
-  const getItemIcon = (type: string) => {
-    switch (type) {
-      case "announcement":
-        return MessageSquare;
-      case "meeting":
-        return Video;
-      case "quiz":
-        return FileText;
-      default:
-        return FileText;
+  const handleNotificationClick = (notification: Notification) => {
+    if (notification.link) {
+      navigate(notification.link);
     }
   };
+
+  const getNotificationIcon = (type: Notification['type']) => {
+    switch (type) {
+      case 'NEW_ASSIGNMENT':
+        return '📝';
+      case 'NEW_QUIZ':
+        return '❓';
+      case 'GRADE_POSTED':
+        return '✅';
+      case 'DISCUSSION_REPLY':
+        return '💬';
+      case 'INBOX_MESSAGE':
+        return '📧';
+      default:
+        return '🔔';
+    }
+  };
+
+  const activityByDate = groupNotificationsByDate(notifications);
 
   return (
     <div className="w-full min-h-full bg-background overflow-x-hidden">
@@ -203,12 +170,9 @@ const Dashboard = () => {
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <Calendar className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 relative">
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-destructive text-destructive-foreground text-[10px] font-medium rounded-full flex items-center justify-center">
-                2
-              </span>
-            </Button>
+            <div className="hidden md:block">
+              <NotificationBell />
+            </div>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <MoreHorizontal className="h-4 w-4" />
             </Button>
@@ -226,133 +190,105 @@ const Dashboard = () => {
 
       {/* Activity Feed */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 pb-12">
-        <div className="space-y-0">
-          {activityByDate.map((dayGroup) => (
-            <div key={dayGroup.date}>
-              {/* Date Header */}
-              <div className="py-4">
-                <h2 className="text-sm font-medium text-foreground">
-                  {dayGroup.date}
-                </h2>
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-6 w-32" />
+                <div className="space-y-2">
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
               </div>
+            ))}
+          </div>
+        ) : activityByDate.length === 0 ? (
+          <EmptyState
+            icon={<Bell className="h-12 w-12" />}
+            title="No recent activity"
+            description="You don't have any notifications or activity yet. Check back later for updates."
+          />
+        ) : (
+          <div className="space-y-0">
+            {activityByDate.map((dayGroup) => (
+              <div key={dayGroup.date}>
+                {/* Date Header */}
+                <div className="py-4">
+                  <h2 className="text-sm font-medium text-foreground">
+                    {dayGroup.date}
+                  </h2>
+                </div>
 
-              {/* Items */}
-              <div className="space-y-0">
-                {dayGroup.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 py-4 border-t border-border group"
-                  >
-                    {/* Course Color Badge */}
-                    <div className="flex items-start gap-2 shrink-0">
-                      <div
-                        className="w-2 h-2 rounded-full mt-2 shrink-0"
-                        style={{ backgroundColor: item.courseColor }}
-                      />
-                      <div
-                        className="w-24 sm:w-28 h-14 sm:h-16 rounded text-[10px] font-semibold text-white flex items-center justify-center text-center px-1 leading-tight shrink-0"
-                        style={{ backgroundColor: item.courseColor }}
+                {/* Items */}
+                <div className="space-y-0">
+                  {dayGroup.items.map((notification) => {
+                    const course = courses.get(notification.link?.match(/\/courses\/([^/]+)/)?.[1] || "");
+                    const courseCode = course?.code || "Unknown";
+                    const courseName = course?.title || "Course";
+                    const courseColor = course ? getCourseColor(course.id) : "#6B7280";
+                    
+                    return (
+                      <button
+                        key={notification.id}
+                        onClick={() => handleNotificationClick(notification)}
+                        className={cn(
+                          "w-full flex flex-col sm:flex-row items-start gap-3 sm:gap-4 py-4 border-t border-border group hover:bg-muted/30 transition-colors text-left",
+                          !notification.isRead && "bg-primary/5"
+                        )}
                       >
-                        <span className="line-clamp-2">
-                          {item.courseCode}
-                          <br />
-                          {item.courseName.split(" ").slice(0, 3).join(" ").toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 w-full sm:w-auto">
-                      {item.completed ? (
-                        <button
-                          onClick={() => toggleCompleted(item.id)}
-                          className="flex items-center gap-2 text-primary hover:underline text-sm"
-                        >
-                          <ChevronRight
-                            className={cn(
-                              "h-4 w-4 transition-transform",
-                              expandedCompleted.includes(item.id) && "rotate-90"
-                            )}
+                        {/* Course Color Badge */}
+                        <div className="flex items-start gap-2 shrink-0">
+                          <div
+                            className="w-2 h-2 rounded-full mt-2 shrink-0"
+                            style={{ backgroundColor: courseColor }}
                           />
-                          {item.title}
-                        </button>
-                      ) : (
-                        <div className="flex items-start gap-3">
-                          {item.type !== "meeting" && (
-                            <Checkbox className="mt-1" />
-                          )}
-                          {item.type === "meeting" && (
-                            <Video className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
-                          )}
-                          {item.type === "announcement" && (
-                            <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground mb-0.5">
-                              {item.courseCode} {item.courseName.toUpperCase()} {item.type === "announcement" ? "ANNOUNCEMENT" : item.type === "meeting" ? "CALENDAR EVENT" : ""}
-                            </p>
-                            <p
-                              className={cn(
-                                "text-sm font-medium",
-                                item.type === "announcement" || item.type === "quiz"
-                                  ? "text-destructive"
-                                  : "text-primary"
-                              )}
-                            >
-                              {item.title}
-                            </p>
-                            {item.type === "meeting" && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                Zoom Online Meeting
-                              </p>
-                            )}
+                          <div
+                            className="w-24 sm:w-28 h-14 sm:h-16 rounded text-[10px] font-semibold text-white flex items-center justify-center text-center px-1 leading-tight shrink-0"
+                            style={{ backgroundColor: courseColor }}
+                          >
+                            <span className="line-clamp-2">
+                              {courseCode}
+                              <br />
+                              {courseName.split(" ").slice(0, 3).join(" ").toUpperCase()}
+                            </span>
                           </div>
                         </div>
-                      )}
-                    </div>
 
-                    {/* Right Side */}
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
-                      {item.replies !== undefined && (
-                        <Button variant="outline" size="sm" className="h-7 text-xs">
-                          Replies
-                        </Button>
-                      )}
-                      {item.dueTime && (
-                        <>
-                          <span className="text-xs text-muted-foreground">
-                            {item.dueTime}
-                          </span>
-                          <Button size="sm" className="h-7 text-xs gap-1">
-                            <Video className="h-3 w-3" />
-                            Join
-                          </Button>
-                        </>
-                      )}
-                      {item.time && (
-                        <span className="text-xs text-muted-foreground">
-                          {item.time}
-                        </span>
-                      )}
-                      {item.grade && (
-                        <div className="flex gap-1">
-                          {item.grade.split(" • ").map((tag, i) => (
-                            <span
-                              key={i}
-                              className="px-2 py-1 text-xs border border-border rounded text-muted-foreground"
-                            >
-                              {tag}
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 w-full sm:w-auto">
+                          <div className="flex items-start gap-3">
+                            <span className="text-xl shrink-0 mt-0.5">
+                              {getNotificationIcon(notification.type)}
                             </span>
-                          ))}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-xs text-muted-foreground">
+                                  {courseCode} • {notification.type.replace(/_/g, ' ')}
+                                </p>
+                                {!notification.isRead && (
+                                  <div className="h-2 w-2 rounded-full bg-primary shrink-0" />
+                                )}
+                              </div>
+                              <p className="text-sm font-medium text-foreground">
+                                {notification.title}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {notification.body}
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {formatDistanceToNow(parseISO(notification.createdAt), { addSuffix: true })}
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { getModules, Module, ModuleItem, ModuleItemType } from "@/lib/modules-api";
+import { getCourseById, Course } from "@/lib/courses-api";
 import { getErrorMessage } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
@@ -74,26 +75,34 @@ const getItemColor = (type: ModuleItemType) => {
 const CourseHome = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const [modules, setModules] = useState<Module[]>([]);
+  const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const { isInstructor: isFaculty } = useCoursePermissions();
 
   useEffect(() => {
-    const fetchModules = async () => {
+    const fetchData = async () => {
       if (!courseId) return;
       
       try {
         setLoading(true);
-        const response = await getModules(courseId);
+        // Fetch course and modules in parallel
+        const [courseData, modulesData] = await Promise.all([
+          getCourseById(courseId),
+          getModules(courseId),
+        ]);
+        
+        setCourse(courseData);
+        
         // Sort modules by position
-        const sortedModules = [...response.modules].sort((a, b) => a.position - b.position);
+        const sortedModules = [...modulesData.modules].sort((a, b) => a.position - b.position);
         setModules(sortedModules);
         // Expand first module by default
         if (sortedModules.length > 0) {
           setExpandedModules([sortedModules[0].moduleId]);
         }
       } catch (error) {
-        console.error("Failed to fetch modules:", error);
+        console.error("Failed to fetch course data:", error);
         toast({
           title: "Error",
           description: getErrorMessage(error),
@@ -104,7 +113,7 @@ const CourseHome = () => {
       }
     };
 
-    fetchModules();
+    fetchData();
   }, [courseId]);
 
   const toggleModule = (moduleId: string) => {
@@ -150,11 +159,50 @@ const CourseHome = () => {
     <div className="flex flex-col lg:flex-row min-h-full bg-background w-full overflow-x-hidden">
       {/* Main Content */}
       <div className="flex-1 p-4 sm:p-6 md:p-8 min-w-0 w-full">
+        {/* Course Header */}
+        {course && (
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+              {course.coverImageUrl && (
+                <div className="w-full sm:w-48 h-32 sm:h-40 rounded-lg overflow-hidden shrink-0">
+                  <img
+                    src={course.coverImageUrl}
+                    alt={course.title}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-xl sm:text-2xl font-display font-semibold text-foreground mb-1 truncate">
+                      {course.title}
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                      {course.code} • {course.term} • Section {course.section}
+                    </p>
+                  </div>
+                  {course.status && (
+                    <Badge variant={course.status === "PUBLISHED" ? "default" : "secondary"}>
+                      {course.status}
+                    </Badge>
+                  )}
+                </div>
+                {course.description && (
+                  <p className="text-sm sm:text-base text-muted-foreground mt-2">
+                    {course.description}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Welcome Section */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-xl sm:text-2xl font-display font-semibold text-foreground mb-2">
+          <h2 className="text-xl sm:text-2xl font-display font-semibold text-foreground mb-2">
             Welcome back to your course
-          </h1>
+          </h2>
           <p className="text-sm sm:text-base text-muted-foreground">
             Continue where you left off and track your progress
           </p>

@@ -1,13 +1,16 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserInfo, getCurrentUser, signOut as apiSignOut } from '@/lib/auth-api';
+import { UserInfo, getCurrentUser, signOut as apiSignOut, signIn, signUp, SignInRequest, SignUpRequest } from '@/lib/auth-api';
 import { useToast } from '@/hooks/use-toast';
+import { getAccessToken } from '@/lib/api';
 
 interface AuthContextType {
   user: UserInfo | null;
   loading: boolean;
   isAuthenticated: boolean;
-  logout: () => Promise<void>;
+  signin: (data: SignInRequest) => Promise<void>;
+  signup: (data: SignUpRequest) => Promise<void>;
+  signout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -20,6 +23,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { toast } = useToast();
 
   const loadUser = async () => {
+    // Only try to load user if token exists
+    const token = getAccessToken();
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const currentUser = await getCurrentUser();
       setUser(currentUser);
@@ -35,17 +45,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loadUser();
   }, []);
 
-  const logout = async () => {
+  const handleSignIn = async (data: SignInRequest) => {
+    try {
+      const response = await signIn(data);
+      setUser(response.user);
+      navigate('/dashboard');
+      toast({
+        title: 'Signed in',
+        description: 'Welcome back!',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Sign in failed',
+        description: error?.response?.data?.error?.message || 'Invalid email or password',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
+  const handleSignUp = async (data: SignUpRequest) => {
+    try {
+      const response = await signUp(data);
+      setUser(response.user);
+      navigate('/dashboard');
+      toast({
+        title: 'Account created',
+        description: 'Your account has been created successfully!',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Sign up failed',
+        description: error?.response?.data?.error?.message || 'Failed to create account',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
+  const handleSignOut = async () => {
     try {
       await apiSignOut();
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error('Error during sign out:', error);
     } finally {
       setUser(null);
       navigate('/signin');
       toast({
-        title: 'Logged out',
-        description: 'You have been successfully logged out.',
+        title: 'Signed out',
+        description: 'You have been successfully signed out.',
       });
     }
   };
@@ -65,7 +113,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         loading,
         isAuthenticated: !!user,
-        logout,
+        signin: handleSignIn,
+        signup: handleSignUp,
+        signout: handleSignOut,
         refreshUser,
       }}
     >

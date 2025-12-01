@@ -44,11 +44,78 @@ export interface ApiError {
   details?: string[];
 }
 
+export interface StandardError {
+  timestamp: string;
+  path: string;
+  code: string;
+  message: string;
+  details?: string[];
+}
+
 /**
- * Extract error message from API error response (following momento-app patterns)
+ * Parse standardized error response from backend
+ */
+export const parseError = (error: any): StandardError | null => {
+  // Check if it's already in the standardized format (direct error response)
+  if (error?.timestamp && error?.path && error?.code && error?.message) {
+    return error as StandardError;
+  }
+
+  // Check if it's wrapped in response.data
+  if (error?.response?.data) {
+    const data = error.response.data;
+    if (data.timestamp && data.path && data.code && data.message) {
+      return data as StandardError;
+    }
+  }
+
+  // Fallback: try to extract from old ApiResponse format
+  if (error?.response?.data?.error) {
+    const errorData = error.response.data.error;
+    return {
+      timestamp: new Date().toISOString(),
+      path: error.response.config?.url || "/unknown",
+      code: errorData.code || "UNKNOWN_ERROR",
+      message: errorData.message || "An error occurred",
+      details: errorData.details,
+    };
+  }
+
+  // Network error
+  if (error instanceof TypeError && error.message.includes("fetch")) {
+    return {
+      timestamp: new Date().toISOString(),
+      path: "/unknown",
+      code: "NETWORK_ERROR",
+      message: "Network error. Please check your connection.",
+      details: [],
+    };
+  }
+
+  // Generic error
+  if (error?.message) {
+    return {
+      timestamp: new Date().toISOString(),
+      path: error?.response?.config?.url || "/unknown",
+      code: "UNKNOWN_ERROR",
+      message: error.message,
+      details: [],
+    };
+  }
+
+  return null;
+};
+
+/**
+ * Extract error message from API error response
  */
 export const getErrorMessage = (error: any): string => {
-  // Handle our Spring Boot ApiResponse format
+  const parsed = parseError(error);
+  if (parsed) {
+    return parsed.message;
+  }
+  
+  // Fallback to old format
   if (error?.response?.data?.error?.message) {
     return error.response.data.error.message;
   }
@@ -57,17 +124,36 @@ export const getErrorMessage = (error: any): string => {
     return error.error.message;
   }
   
-  // Handle standard error response
   if (error?.response?.data?.message) {
     return error.response.data.message;
   }
   
-  // Handle direct message
   if (error?.message) {
     return error.message;
   }
   
   return 'An unexpected error occurred. Please try again.';
+};
+
+/**
+ * Extract field errors from validation details
+ */
+export const extractFieldErrors = (error: any): Map<string, string> => {
+  const fieldErrors = new Map<string, string>();
+  const parsed = parseError(error);
+
+  if (parsed?.details && parsed.details.length > 0) {
+    parsed.details.forEach((detail) => {
+      // Format: "fieldName: error message"
+      const match = detail.match(/^([^:]+):\s*(.+)$/);
+      if (match) {
+        const [, field, message] = match;
+        fieldErrors.set(field.trim(), message.trim());
+      }
+    });
+  }
+
+  return fieldErrors;
 };
 
 /**
@@ -134,7 +220,19 @@ export const apiFetch = async <T>(
     }
 
     if (!response.ok) {
-      // Create an error object that matches our ApiError format
+      // Check if response is in standardized error format
+      if (data.timestamp && data.path && data.code && data.message) {
+        // Standardized error format
+        const apiError: any = new Error(data.message);
+        apiError.response = {
+          data: data, // Already in StandardError format
+          status: response.status,
+          config: { url: endpoint },
+        };
+        throw apiError;
+      }
+      
+      // Fallback: old ApiResponse format
       const error: ApiError = {
         code: data.error?.code || 'UNKNOWN_ERROR',
         message: data.error?.message || 'An error occurred',
@@ -149,6 +247,7 @@ export const apiFetch = async <T>(
           success: false,
         },
         status: response.status,
+        config: { url: endpoint },
       };
       throw apiError;
     }

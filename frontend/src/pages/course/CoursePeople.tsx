@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,64 +13,186 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Search, 
-  Users, 
-  MoreVertical, 
-  Mail, 
+import {
+  Search,
+  Users,
+  MoreVertical,
+  Mail,
   UserPlus,
   GraduationCap,
   BookOpen,
   Crown,
+  Trash2,
+  Edit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCoursePermissions } from "@/hooks/useCoursePermissions";
-
-interface Person {
-  id: string;
-  name: string;
-  email: string;
-  section: string;
-  role: "Teacher" | "TA" | "Student";
-  avatar?: string;
-  status?: "active" | "inactive";
-  lastActive?: string;
-}
-
-const people: Person[] = [
-  { id: "1", name: "Dr. Sarah Chen", email: "sarah.chen@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Teacher", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face", status: "active", lastActive: "Just now" },
-  { id: "2", name: "Michael Torres", email: "m.torres@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "TA", status: "active", lastActive: "2 hours ago" },
-  { id: "3", name: "Nishit Agarwal", email: "n.agarwal@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", status: "active", lastActive: "1 hour ago" },
-  { id: "4", name: "Jose Annunziato", email: "j.annunziato@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", status: "active", lastActive: "3 hours ago" },
-  { id: "5", name: "Dinesh Bachchani", email: "d.bachchani@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", status: "inactive", lastActive: "2 days ago" },
-  { id: "6", name: "Xuan Bai", email: "x.bai@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", status: "active", lastActive: "30 min ago" },
-  { id: "7", name: "Anirudh Bakare", email: "a.bakare@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face", status: "active", lastActive: "1 hour ago" },
-  { id: "8", name: "Siddhi Satish Bhanushali", email: "s.bhanushali@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", status: "active", lastActive: "4 hours ago" },
-  { id: "9", name: "Shraavya Kishan Bharadwaj", email: "s.bharadwaj@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", status: "active", lastActive: "5 hours ago" },
-  { id: "10", name: "Shailly Bhati", email: "s.bhati@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", status: "inactive", lastActive: "1 week ago" },
-  { id: "11", name: "Mayur Mahavir Bijarniya", email: "m.bijarniya@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", status: "active", lastActive: "2 hours ago" },
-  { id: "12", name: "Rohan Kumar Chitra", email: "r.chitra@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", status: "active", lastActive: "6 hours ago" },
-  { id: "13", name: "Austin Clift", email: "a.clift@university.edu", section: "CS5610 Web Development SEC 05 Fall 2025", role: "Student", avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face", status: "active", lastActive: "Just now" },
-];
+import { getCoursePeople, enrollByEmail, updateEnrollment, CoursePeopleResponse } from "@/lib/courses-api";
+import { toast } from "@/hooks/use-toast";
+import { getErrorMessage } from "@/lib/api";
 
 const CoursePeople = () => {
+  const { courseId } = useParams<{ courseId: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("everyone");
+  const [people, setPeople] = useState<CoursePeopleResponse['people']>([]);
+  const [loading, setLoading] = useState(true);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"STUDENT" | "TA" | "INSTRUCTOR">("STUDENT");
+  const [inviting, setInviting] = useState(false);
   const { isInstructor: isFaculty } = useCoursePermissions();
+
+  useEffect(() => {
+    const fetchPeople = async () => {
+      if (!courseId) return;
+
+      try {
+        setLoading(true);
+        const response = await getCoursePeople(courseId);
+        setPeople(response.people);
+      } catch (error) {
+        console.error("Failed to fetch course people:", error);
+        toast({
+          title: "Error",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPeople();
+  }, [courseId]);
+
+  const handleInvite = async () => {
+    if (!courseId || !inviteEmail.trim()) return;
+
+    try {
+      setInviting(true);
+      await enrollByEmail(courseId, {
+        email: inviteEmail.trim(),
+        role: inviteRole,
+      });
+
+      toast({
+        title: "Success",
+        description: `User ${inviteEmail} has been enrolled successfully`,
+      });
+
+      setInviteDialogOpen(false);
+      setInviteEmail("");
+      setInviteRole("STUDENT");
+
+      // Refresh people list
+      const response = await getCoursePeople(courseId);
+      setPeople(response.people);
+    } catch (error) {
+      console.error("Failed to invite user:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRemove = async (enrollmentId: string, userName: string) => {
+    if (!courseId) return;
+
+    if (!confirm(`Are you sure you want to remove ${userName} from this course?`)) {
+      return;
+    }
+
+    try {
+      await updateEnrollment(courseId, enrollmentId, {
+        status: "DROPPED",
+      });
+
+      toast({
+        title: "Success",
+        description: `${userName} has been removed from the course`,
+      });
+
+      // Refresh people list
+      const response = await getCoursePeople(courseId);
+      setPeople(response.people);
+    } catch (error) {
+      console.error("Failed to remove user:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleChangeRole = async (enrollmentId: string, newRole: "STUDENT" | "TA" | "INSTRUCTOR") => {
+    if (!courseId) return;
+
+    try {
+      await updateEnrollment(courseId, enrollmentId, {
+        role: newRole,
+      });
+
+      toast({
+        title: "Success",
+        description: "User role has been updated",
+      });
+
+      // Refresh people list
+      const response = await getCoursePeople(courseId);
+      setPeople(response.people);
+    } catch (error) {
+      console.error("Failed to update role:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Get enrollment ID from people array - we need to store it
+  // For now, we'll need to modify the API response to include enrollmentId
+  // For this implementation, we'll use userId as a workaround and find the enrollment
 
   const filteredPeople = people.filter((person) => {
     const matchesSearch = person.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       person.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === "all" || person.role.toLowerCase() === roleFilter;
+    const roleMap: Record<string, string> = {
+      "INSTRUCTOR": "teacher",
+      "TA": "ta",
+      "STUDENT": "student",
+    };
+    const matchesRole = roleFilter === "all" || roleMap[person.courseRole] === roleFilter;
     return matchesSearch && matchesRole;
   });
 
-  const teachers = people.filter(p => p.role === "Teacher");
-  const tas = people.filter(p => p.role === "TA");
-  const students = people.filter(p => p.role === "Student");
-  const activeStudents = students.filter(p => p.status === "active").length;
+  const teachers = people.filter(p => p.courseRole === "INSTRUCTOR");
+  const tas = people.filter(p => p.courseRole === "TA");
+  const students = people.filter(p => p.courseRole === "STUDENT");
+  const activeStudents = people.filter(p => p.status === "ACTIVE").length;
 
   const getInitials = (name: string) => {
     return name
@@ -81,7 +205,7 @@ const CoursePeople = () => {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case "Teacher":
+      case "INSTRUCTOR":
         return <Badge className="bg-primary/10 text-primary border-primary/20">Instructor</Badge>;
       case "TA":
         return <Badge className="bg-warning/10 text-warning border-warning/20">Teaching Assistant</Badge>;
@@ -92,7 +216,7 @@ const CoursePeople = () => {
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case "Teacher":
+      case "INSTRUCTOR":
         return <Crown className="h-4 w-4 text-primary" />;
       case "TA":
         return <BookOpen className="h-4 w-4 text-warning" />;
@@ -100,6 +224,16 @@ const CoursePeople = () => {
         return <GraduationCap className="h-4 w-4 text-muted-foreground" />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 w-full min-w-0 overflow-x-hidden">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-muted-foreground">Loading people...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 md:p-8 w-full min-w-0 overflow-x-hidden">
@@ -116,10 +250,64 @@ const CoursePeople = () => {
                 <Mail className="h-4 w-4" />
                 Message All
               </Button>
-              <Button size="sm" className="gap-2">
-                <UserPlus className="h-4 w-4" />
-                Add People
-              </Button>
+              <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Add People
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Invite User to Course</DialogTitle>
+                    <DialogDescription>
+                      Enter the email address of the user you want to invite. They must already have an account.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="user@example.com"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        disabled={inviting}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="role">Role</Label>
+                      <Select
+                        value={inviteRole}
+                        onValueChange={(value) => setInviteRole(value as "STUDENT" | "TA" | "INSTRUCTOR")}
+                        disabled={inviting}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="STUDENT">Student</SelectItem>
+                          <SelectItem value="TA">Teaching Assistant</SelectItem>
+                          <SelectItem value="INSTRUCTOR">Instructor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      variant="outline"
+                      onClick={() => setInviteDialogOpen(false)}
+                      disabled={inviting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}>
+                      {inviting ? "Inviting..." : "Invite User"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
         </div>
@@ -205,7 +393,7 @@ const CoursePeople = () => {
               />
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full md:w-[180px]">
                 <SelectValue placeholder="All roles" />
               </SelectTrigger>
               <SelectContent>
@@ -220,40 +408,72 @@ const CoursePeople = () => {
           {/* People Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredPeople.map((person, index) => (
-              <Card 
-                key={person.id} 
-                className="hover:shadow-lg transition-all cursor-pointer group"
+              <Card
+                key={person.userId}
+                className="hover:shadow-lg transition-all group"
                 style={{ animationDelay: `${index * 30}ms` }}
               >
                 <CardContent className="p-5">
                   <div className="flex items-start gap-4">
                     <div className="relative">
                       <Avatar className="h-14 w-14 ring-2 ring-background shadow-lg">
-                        <AvatarImage src={person.avatar} alt={person.name} />
+                        <AvatarImage src={undefined} alt={person.name} />
                         <AvatarFallback className={cn(
                           "text-sm font-medium",
-                          person.role === "Teacher" && "bg-primary/10 text-primary",
-                          person.role === "TA" && "bg-warning/10 text-warning",
-                          person.role === "Student" && "bg-muted text-muted-foreground"
+                          person.courseRole === "INSTRUCTOR" && "bg-primary/10 text-primary",
+                          person.courseRole === "TA" && "bg-warning/10 text-warning",
+                          person.courseRole === "STUDENT" && "bg-muted text-muted-foreground"
                         )}>
                           {getInitials(person.name)}
                         </AvatarFallback>
                       </Avatar>
-                      {person.status === "active" && person.lastActive?.includes("now") && (
+                      {person.status === "ACTIVE" && (
                         <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-success border-2 border-background" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        {getRoleIcon(person.role)}
+                        {getRoleIcon(person.courseRole)}
                         <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                           {person.name}
                         </h3>
+                        {isFaculty && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleChangeRole(person.enrollmentId, "INSTRUCTOR")}>
+                                <Crown className="h-4 w-4 mr-2" />
+                                Make Instructor
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleChangeRole(person.enrollmentId, "TA")}>
+                                <BookOpen className="h-4 w-4 mr-2" />
+                                Make TA
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleChangeRole(person.enrollmentId, "STUDENT")}>
+                                <GraduationCap className="h-4 w-4 mr-2" />
+                                Make Student
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleRemove(person.enrollmentId, person.name)}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground truncate mb-2">{person.email}</p>
                       <div className="flex items-center justify-between">
-                        {getRoleBadge(person.role)}
-                        <span className="text-xs text-muted-foreground">{person.lastActive}</span>
+                        {getRoleBadge(person.courseRole)}
+                        <Badge variant={person.status === "ACTIVE" ? "default" : "secondary"} className="text-xs">
+                          {person.status}
+                        </Badge>
                       </div>
                     </div>
                   </div>

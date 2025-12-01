@@ -8,7 +8,7 @@ export interface SignUpRequest {
   name: string;
   email: string;
   password: string;
-  role?: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+  role?: 'STUDENT' | 'INSTRUCTOR' | 'TA' | 'ADMIN';
 }
 
 export interface SignInRequest {
@@ -20,7 +20,7 @@ export interface UserInfo {
   id: string;
   name: string;
   email: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+  roles: ('STUDENT' | 'INSTRUCTOR' | 'TA' | 'ADMIN')[];
 }
 
 export interface AuthResponse {
@@ -58,7 +58,7 @@ export const signUp = async (data: SignUpRequest): Promise<AuthResponse> => {
  */
 export const signIn = async (data: SignInRequest): Promise<AuthResponse> => {
   try {
-    const response = await apiFetch<AuthResponse>('/auth/login', {
+    const response = await apiFetch<AuthResponse>('/auth/signin', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -83,7 +83,7 @@ export const signIn = async (data: SignInRequest): Promise<AuthResponse> => {
  */
 export const signOut = async (): Promise<void> => {
   try {
-    await apiFetch('/auth/logout', {
+    await apiFetch('/auth/signout', {
       method: 'POST',
     });
   } catch (error) {

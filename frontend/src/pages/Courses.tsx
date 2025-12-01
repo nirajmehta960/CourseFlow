@@ -18,9 +18,13 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { getMyCourses, getAllPublishedCourses, selfEnrollInCourse, Course } from "@/lib/courses-api";
+import { getMyCourses, getAllPublishedCourses, selfEnrollInCourse, Course, createCourse } from "@/lib/courses-api";
+import { CreateCourseDialog } from "@/components/course/CreateCourseDialog";
 import { getErrorMessage } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Generate a color based on course ID for consistent styling
 const generateColor = (id: string): string => {
@@ -60,36 +64,59 @@ const Courses = () => {
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [enrollingCourseId, setEnrollingCourseId] = useState<string | null>(null);
+  const { user } = useAuth();
+
+  const isInstructor = user?.roles.includes('INSTRUCTOR') || user?.roles.includes('ADMIN');
 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
         setLoading(true);
-        // Fetch all published courses and enrolled courses in parallel
-        const [allCourses, enrolledCourses] = await Promise.all([
-          getAllPublishedCourses(),
-          getMyCourses()
+        // Fetch both enrolled and published courses
+        const [myCourses, publishedCourses] = await Promise.all([
+          getMyCourses(),
+          getAllPublishedCourses()
         ]);
-        
-        // Create a set of enrolled course IDs for quick lookup
-        const enrolledCourseIds = new Set(enrolledCourses.map((c: Course) => c.id));
-        
-        // Map all courses to display format, marking which ones are enrolled
-        const mappedCourses: CourseDisplay[] = allCourses.map((course: Course) => ({
-          id: course.id,
-          name: course.title,
-          code: course.code,
-          instructor: "Instructor", // TODO: Fetch instructor names from user IDs
-          department: "", // Not available in API
-          enrolled: enrolledCourseIds.has(course.id),
-          term: course.term,
-          color: generateColor(course.id),
-          favorite: false, // TODO: Implement favorites feature
-          students: 0, // TODO: Get from course people API if needed
-          image: defaultCourseImage,
-        }));
-        
-        setCourses(mappedCourses);
+
+        const courseMap = new Map<string, CourseDisplay>();
+
+        // Process enrolled courses first
+        myCourses.forEach((course: Course) => {
+          courseMap.set(course.id, {
+            id: course.id,
+            name: course.title,
+            code: course.code,
+            instructor: "Instructor", // TODO: Fetch instructor names from user IDs
+            department: "", // Not available in API
+            enrolled: true,
+            term: course.term,
+            color: generateColor(course.id),
+            favorite: false, // TODO: Implement favorites feature
+            students: 0, // TODO: Get from course people API if needed
+            image: course.coverImageUrl || defaultCourseImage,
+          });
+        });
+
+        // Add published courses if not already in the map
+        publishedCourses.forEach((course: Course) => {
+          if (!courseMap.has(course.id)) {
+            courseMap.set(course.id, {
+              id: course.id,
+              name: course.title,
+              code: course.code,
+              instructor: "Instructor",
+              department: "",
+              enrolled: false,
+              term: course.term,
+              color: generateColor(course.id),
+              favorite: false,
+              students: 0,
+              image: course.coverImageUrl || defaultCourseImage,
+            });
+          }
+        });
+
+        setCourses(Array.from(courseMap.values()));
       } catch (error) {
         console.error("Failed to fetch courses:", error);
         toast({
@@ -104,19 +131,19 @@ const Courses = () => {
 
     fetchCourses();
   }, []);
-  
+
   const handleEnroll = async (courseId: string) => {
     try {
       setEnrollingCourseId(courseId);
       await selfEnrollInCourse(courseId);
-      
+
       // Update the course to mark it as enrolled
       setCourses(prevCourses =>
         prevCourses.map(course =>
           course.id === courseId ? { ...course, enrolled: true } : course
         )
       );
-      
+
       toast({
         title: "Success",
         description: "Successfully enrolled in course",
@@ -276,9 +303,9 @@ const Courses = () => {
             {/* Spacer to push button to bottom */}
             <div className="mt-auto">
               {!isEnrolled && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="w-full text-xs"
                   onClick={(e) => {
                     e.preventDefault();
@@ -310,6 +337,61 @@ const Courses = () => {
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {isInstructor && <CreateCourseDialog onCourseCreated={() => {
+                // Refresh courses list
+                const fetchCourses = async () => {
+                  try {
+                    setLoading(true);
+                    const [myCourses, publishedCourses] = await Promise.all([
+                      getMyCourses(),
+                      getAllPublishedCourses()
+                    ]);
+
+                    const courseMap = new Map<string, CourseDisplay>();
+
+                    myCourses.forEach((course: Course) => {
+                      courseMap.set(course.id, {
+                        id: course.id,
+                        name: course.title,
+                        code: course.code,
+                        instructor: "Instructor",
+                        department: "",
+                        enrolled: true,
+                        term: course.term,
+                        color: generateColor(course.id),
+                        favorite: false,
+                        students: 0,
+                        image: course.coverImageUrl || defaultCourseImage,
+                      });
+                    });
+
+                    publishedCourses.forEach((course: Course) => {
+                      if (!courseMap.has(course.id)) {
+                        courseMap.set(course.id, {
+                          id: course.id,
+                          name: course.title,
+                          code: course.code,
+                          instructor: "Instructor",
+                          department: "",
+                          enrolled: false,
+                          term: course.term,
+                          color: generateColor(course.id),
+                          favorite: false,
+                          students: 0,
+                          image: course.coverImageUrl || defaultCourseImage,
+                        });
+                      }
+                    });
+
+                    setCourses(Array.from(courseMap.values()));
+                  } catch (error) {
+                    console.error("Failed to refresh courses:", error);
+                  } finally {
+                    setLoading(false);
+                  }
+                };
+                fetchCourses();
+              }} />}
               <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
                 <BookOpen className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-xs sm:text-sm font-medium text-primary whitespace-nowrap">
@@ -323,117 +405,147 @@ const Courses = () => {
 
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 min-w-0">
         {loading ? (
-          <div className="flex items-center justify-center min-h-[400px] w-full">
-            <p className="text-muted-foreground">Loading courses...</p>
-          </div>
-        ) : (
           <div className="w-full min-w-0">
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8 w-full">
-          <div className="relative flex-1 min-w-0 max-w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground shrink-0 pointer-events-none" />
-            <Input
-              placeholder="Search courses, instructors..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-card border-border h-11 w-full"
-            />
-          </div>
-          <div className="flex gap-2 sm:gap-3 shrink-0">
-            <Select value={termFilter} onValueChange={setTermFilter}>
-              <SelectTrigger className="w-full sm:w-40 bg-card h-11 min-w-[120px]">
-                <SelectValue placeholder="Term" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Terms</SelectItem>
-                {terms.map((term) => (
-                  <SelectItem key={term} value={term}>
-                    {term}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={enrollmentFilter} onValueChange={setEnrollmentFilter}>
-              <SelectTrigger className="w-full sm:w-40 bg-card h-11 min-w-[120px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Courses</SelectItem>
-                <SelectItem value="enrolled">Enrolled</SelectItem>
-                <SelectItem value="available">Available</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Enrolled Courses */}
-        {enrolledCourses.length > 0 && (
-          <div className="mb-12 w-full">
-            <div className="flex items-center gap-2 sm:gap-3 mb-5 w-full">
-              <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent min-w-0" />
-              <h2 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2 shrink-0 whitespace-nowrap">
-                Published Courses ({enrolledCourses.length})
-              </h2>
-              <div className="h-px flex-1 bg-gradient-to-l from-border to-transparent min-w-0" />
+            <div className="flex flex-col sm:flex-row gap-4 mb-8">
+              <Skeleton className="h-11 flex-1 max-w-md" />
+              <Skeleton className="h-11 w-40" />
+              <Skeleton className="h-11 w-40" />
             </div>
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 w-full">
-              {enrolledCourses.map((course, index) => (
-                <Link
-                  key={course.id}
-                  to={`/courses/${course.id}`}
-                  className="block w-full min-w-0 animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                  onClick={(e) => {
-                    // Prevent navigation if clicking on enroll button
-                    if ((e.target as HTMLElement).closest('button')) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
-                  <CourseCard course={course} isEnrolled={true} />
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Available Courses */}
-        {availableCourses.length > 0 && (
-          <div className="w-full">
-            <div className="flex items-center gap-2 sm:gap-3 mb-5 w-full">
-              <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent min-w-0" />
-              <h2 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2 shrink-0 whitespace-nowrap">
-                Available Courses ({availableCourses.length})
-              </h2>
-              <div className="h-px flex-1 bg-gradient-to-l from-border to-transparent min-w-0" />
-            </div>
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 w-full">
-              {availableCourses.map((course, index) => (
-                <div
-                  key={course.id}
-                  className="w-full min-w-0 animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <CourseCard course={course} isEnrolled={false} />
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <div key={i} className="bg-card rounded-xl border border-border overflow-hidden">
+                  <Skeleton className="h-36 w-full" />
+                  <div className="p-4 space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-9 w-full mt-4" />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        )}
-
-        {filteredCourses.length === 0 && !loading && (
-          <div className="text-center py-12 sm:py-20 w-full">
-            <div className="w-16 h-16 mx-auto rounded-full bg-muted/50 flex items-center justify-center mb-4">
-              <Search className="h-8 w-8 text-muted-foreground/50" />
+        ) : (
+          <div className="w-full min-w-0">
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-8 w-full">
+              <div className="relative flex-1 min-w-0 max-w-full sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground shrink-0 pointer-events-none" />
+                <Input
+                  placeholder="Search courses, instructors..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-card border-border h-11 w-full"
+                />
+              </div>
+              <div className="flex gap-2 sm:gap-3 shrink-0">
+                <Select value={termFilter} onValueChange={setTermFilter}>
+                  <SelectTrigger className="w-full sm:w-40 bg-card h-11 min-w-[120px]">
+                    <SelectValue placeholder="Term" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Terms</SelectItem>
+                    {terms.map((term) => (
+                      <SelectItem key={term} value={term}>
+                        {term}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={enrollmentFilter} onValueChange={setEnrollmentFilter}>
+                  <SelectTrigger className="w-full sm:w-40 bg-card h-11 min-w-[120px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Courses</SelectItem>
+                    <SelectItem value="enrolled">Enrolled</SelectItem>
+                    <SelectItem value="available">Available</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <p className="text-foreground font-medium mb-1">No courses found</p>
-            <p className="text-sm text-muted-foreground px-4">
-              {courses.length === 0 
-                ? "You are not enrolled in any courses yet"
-                : "Try adjusting your search or filters"}
-            </p>
-          </div>
-        )}
+
+            {/* Enrolled Courses */}
+            {enrolledCourses.length > 0 && (
+              <div className="mb-12 w-full">
+                <div className="flex items-center gap-2 sm:gap-3 mb-5 w-full">
+                  <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent min-w-0" />
+                  <h2 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2 shrink-0 whitespace-nowrap">
+                    My Courses ({enrolledCourses.length})
+                  </h2>
+                  <div className="h-px flex-1 bg-gradient-to-l from-border to-transparent min-w-0" />
+                </div>
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 w-full">
+                  {enrolledCourses.map((course, index) => (
+                    <Link
+                      key={course.id}
+                      to={`/courses/${course.id}`}
+                      className="block w-full min-w-0 animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={(e) => {
+                        // Prevent navigation if clicking on enroll button
+                        if ((e.target as HTMLElement).closest('button')) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      <CourseCard course={course} isEnrolled={true} />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Available Courses */}
+            {availableCourses.length > 0 && (
+              <div className="mb-12 w-full">
+                <div className="flex items-center gap-2 sm:gap-3 mb-5 w-full">
+                  <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent min-w-0" />
+                  <h2 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2 shrink-0 whitespace-nowrap">
+                    Available Courses ({availableCourses.length})
+                  </h2>
+                  <div className="h-px flex-1 bg-gradient-to-l from-border to-transparent min-w-0" />
+                </div>
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 w-full">
+                  {availableCourses.map((course, index) => (
+                    <div
+                      key={course.id}
+                      className="block w-full min-w-0 animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <CourseCard course={course} isEnrolled={false} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {filteredCourses.length === 0 && !loading && (
+              <EmptyState
+                icon={<BookOpen className="h-12 w-12" />}
+                title={courses.length === 0 ? "No courses yet" : "No courses found"}
+                description={
+                  courses.length === 0
+                    ? "You are not enrolled in any courses yet. Create a new course or enroll in an existing one to get started."
+                    : "Try adjusting your search or filters to find courses."
+                }
+                action={
+                  courses.length === 0
+                    ? {
+                      label: isInstructor ? "Create Course" : "Refresh",
+                      onClick: () => {
+                        if (isInstructor) {
+                          // Trigger create course dialog
+                          const button = document.querySelector('[data-create-course]') as HTMLButtonElement;
+                          button?.click();
+                        } else {
+                          window.location.reload();
+                        }
+                      },
+                    }
+                    : undefined
+                }
+              />
+            )}
           </div>
         )}
       </div>

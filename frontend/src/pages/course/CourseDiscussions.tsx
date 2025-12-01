@@ -1,372 +1,363 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Search,
-  Plus,
-  MessageSquare,
-  Pin,
-  ThumbsUp,
-  Clock,
-  ChevronRight,
-  Filter,
-  TrendingUp,
-  Users,
-  Bell,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-
-interface Discussion {
-  id: string;
-  title: string;
-  author: {
-    name: string;
-    avatar?: string;
-    role: "instructor" | "ta" | "student";
-  };
-  content: string;
-  replies: number;
-  likes: number;
-  pinned: boolean;
-  timestamp: string;
-  category: string;
-  isNew?: boolean;
-  lastReply?: string;
-}
-
-const discussions: Discussion[] = [
-  {
-    id: "1",
-    title: "Question about Nozzle Design Assignment",
-    author: { name: "John Doe", role: "student" },
-    content: "I'm having trouble understanding the convergent-divergent nozzle calculations. Can someone explain the relationship between throat area and exit area for optimal expansion?",
-    replies: 12,
-    likes: 5,
-    pinned: false,
-    timestamp: "2 hours ago",
-    category: "Assignments",
-    isNew: true,
-    lastReply: "30 min ago",
-  },
-  {
-    id: "2",
-    title: "Important: Final Project Guidelines Updated",
-    author: { name: "Dr. Sarah Chen", role: "instructor", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face" },
-    content: "Please review the updated final project guidelines. Key changes include the submission format and presentation requirements for the final demonstration.",
-    replies: 24,
-    likes: 18,
-    pinned: true,
-    timestamp: "1 day ago",
-    category: "Announcements",
-    lastReply: "2 hours ago",
-  },
-  {
-    id: "3",
-    title: "Study Group for Quiz 3",
-    author: { name: "Maria Garcia", role: "student" },
-    content: "Anyone interested in forming a study group for the upcoming quiz? I was thinking we could meet on Thursday evening in the engineering library.",
-    replies: 8,
-    likes: 12,
-    pinned: false,
-    timestamp: "3 hours ago",
-    category: "General",
-    lastReply: "1 hour ago",
-  },
-  {
-    id: "4",
-    title: "Office Hours Reminder - Friday 2PM",
-    author: { name: "Michael Torres", role: "ta", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face" },
-    content: "Just a reminder that I'll be holding office hours this Friday from 2-4 PM in Room 305. Feel free to drop by with any questions about the assignments.",
-    replies: 3,
-    likes: 7,
-    pinned: true,
-    timestamp: "5 hours ago",
-    category: "Announcements",
-    lastReply: "3 hours ago",
-  },
-  {
-    id: "5",
-    title: "Combustion Efficiency Question",
-    author: { name: "Alex Johnson", role: "student" },
-    content: "In lecture, we discussed combustion efficiency. How does this relate to specific impulse in practice? I'm trying to understand the connection for my project.",
-    replies: 15,
-    likes: 9,
-    pinned: false,
-    timestamp: "1 day ago",
-    category: "Questions",
-    lastReply: "4 hours ago",
-  },
-  {
-    id: "6",
-    title: "Resources for Understanding Thermodynamics",
-    author: { name: "Emily Watson", role: "student" },
-    content: "I found some great resources for understanding the thermodynamics concepts covered in Module 2. Sharing here for anyone who might find them helpful.",
-    replies: 21,
-    likes: 34,
-    pinned: false,
-    timestamp: "2 days ago",
-    category: "Resources",
-    lastReply: "6 hours ago",
-  },
-];
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, MessageSquare, Edit, Trash2 } from "lucide-react";
+import {
+  getDiscussions,
+  createDiscussion,
+  updateDiscussion,
+  deleteDiscussion,
+  Discussion,
+  DiscussionRequest,
+} from "@/lib/discussions-api";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import { format, parseISO } from "date-fns";
+import { useCoursePermissions } from "@/hooks/useCoursePermissions";
+import { useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 
 const CourseDiscussions = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
-
-  const categories = ["all", ...new Set(discussions.map((d) => d.category))];
-
-  const filteredDiscussions = discussions.filter((discussion) => {
-    const matchesSearch =
-      discussion.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      discussion.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory =
-      selectedCategory === "all" || discussion.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+  const { courseId } = useParams<{ courseId: string }>();
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingDiscussion, setEditingDiscussion] = useState<Discussion | null>(null);
+  const [formData, setFormData] = useState<DiscussionRequest>({
+    title: "",
+    bodyHtml: "",
+    published: false,
   });
+  const { isInstructor: isFaculty } = useCoursePermissions();
+  const { user } = useAuth();
 
-  const pinnedDiscussions = filteredDiscussions.filter((d) => d.pinned);
-  const regularDiscussions = filteredDiscussions.filter((d) => !d.pinned);
+  useEffect(() => {
+    fetchDiscussions();
+  }, [courseId]);
 
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case "instructor":
-        return <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">Instructor</Badge>;
-      case "ta":
-        return <Badge className="bg-warning/10 text-warning border-warning/20 text-xs">TA</Badge>;
-      default:
-        return null;
+  const fetchDiscussions = async () => {
+    if (!courseId) return;
+
+    try {
+      setLoading(true);
+      const data = await getDiscussions(courseId, isFaculty || false);
+      setDiscussions(data);
+    } catch (error) {
+      console.error("Failed to fetch discussions:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
+  const handleCreate = async () => {
+    if (!courseId) return;
+
+    try {
+      await createDiscussion(courseId, formData);
+      toast({
+        title: "Success",
+        description: "Discussion created successfully",
+      });
+      setIsCreateDialogOpen(false);
+      setFormData({ title: "", bodyHtml: "", published: false });
+      fetchDiscussions();
+    } catch (error) {
+      console.error("Failed to create discussion:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
   };
 
-  const DiscussionCard = ({ discussion }: { discussion: Discussion }) => (
-    <Card
-      className={cn(
-        "cursor-pointer transition-all hover:shadow-lg group",
-        discussion.pinned && "border-primary/30 bg-primary/5"
-      )}
-    >
-      <CardContent className="p-5">
-        <div className="flex items-start gap-4">
-          <Avatar className="h-12 w-12 ring-2 ring-background shadow-sm">
-            <AvatarImage src={discussion.author.avatar} />
-            <AvatarFallback className="bg-primary/10 text-primary font-medium">
-              {getInitials(discussion.author.name)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              {discussion.pinned && (
-                <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Pin className="h-3 w-3 text-primary" />
-                </div>
-              )}
-              {discussion.isNew && (
-                <Badge className="bg-success/10 text-success border-success/20 text-xs">New</Badge>
-              )}
-              <h3 className="font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
-                {discussion.title}
-              </h3>
-            </div>
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <span className="text-sm font-medium text-foreground">
-                {discussion.author.name}
-              </span>
-              {getRoleBadge(discussion.author.role)}
-              <span className="text-muted-foreground">•</span>
-              <Badge variant="outline" className="text-xs font-normal">
-                {discussion.category}
-              </Badge>
-            </div>
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-              {discussion.content}
-            </p>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-5 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer">
-                  <MessageSquare className="h-4 w-4" />
-                  {discussion.replies} replies
-                </span>
-                <span className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer">
-                  <ThumbsUp className="h-4 w-4" />
-                  {discussion.likes}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Clock className="h-4 w-4" />
-                  {discussion.timestamp}
-                </span>
-              </div>
-              {discussion.lastReply && (
-                <span className="text-xs text-muted-foreground">
-                  Last reply {discussion.lastReply}
-                </span>
-              )}
-            </div>
-          </div>
-          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const handleEdit = (discussion: Discussion) => {
+    setEditingDiscussion(discussion);
+    setFormData({
+      title: discussion.title,
+      bodyHtml: discussion.bodyHtml,
+      published: discussion.published,
+    });
+    setIsEditDialogOpen(true);
+  };
 
-  const totalReplies = discussions.reduce((acc, d) => acc + d.replies, 0);
-  const activeDiscussions = discussions.filter(d => d.isNew || d.lastReply?.includes("hour") || d.lastReply?.includes("min")).length;
+  const handleUpdate = async () => {
+    if (!courseId || !editingDiscussion) return;
+
+    try {
+      await updateDiscussion(courseId, editingDiscussion.id, formData);
+      toast({
+        title: "Success",
+        description: "Discussion updated successfully",
+      });
+      setIsEditDialogOpen(false);
+      setEditingDiscussion(null);
+      setFormData({ title: "", bodyHtml: "", published: false });
+      fetchDiscussions();
+    } catch (error) {
+      console.error("Failed to update discussion:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (discussionId: string) => {
+    if (!courseId) return;
+
+    if (!confirm("Are you sure you want to delete this discussion?")) {
+      return;
+    }
+
+    try {
+      await deleteDiscussion(courseId, discussionId);
+      toast({
+        title: "Success",
+        description: "Discussion deleted successfully",
+      });
+      fetchDiscussions();
+    } catch (error) {
+      console.error("Failed to delete discussion:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 md:p-8 w-full min-w-0 overflow-x-hidden">
+        <div className="mb-6 space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-40 ml-auto" />
+        </div>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 md:p-8 w-full min-w-0 overflow-x-hidden">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-display font-semibold text-foreground">Discussions</h1>
-            <p className="text-muted-foreground mt-1">Engage with your classmates and instructors</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="gap-2">
-              <Bell className="h-4 w-4" />
-              Subscribe
-            </Button>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Discussion
-            </Button>
-          </div>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-display font-semibold text-foreground">Discussions</h1>
+          <p className="text-muted-foreground mt-1">Course discussions and Q&A</p>
         </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Discussions</p>
-                  <p className="text-2xl font-bold text-foreground">{discussions.length}</p>
-                </div>
-                <MessageSquare className="h-8 w-8 text-primary/40" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Replies</p>
-                  <p className="text-2xl font-bold text-foreground">{totalReplies}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-success/40" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Today</p>
-                  <p className="text-2xl font-bold text-foreground">{activeDiscussions}</p>
-                </div>
-                <Users className="h-8 w-8 text-warning/40" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-secondary/50 to-secondary/30 border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Pinned</p>
-                  <p className="text-2xl font-bold text-foreground">{pinnedDiscussions.length}</p>
-                </div>
-                <Pin className="h-8 w-8 text-muted-foreground/40" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search discussions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {categories.map((category) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(category)}
-                className="capitalize"
-              >
-                {category === "all" ? "All Topics" : category}
-              </Button>
-            ))}
-          </div>
-        </div>
+        {isFaculty && (
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Discussion
+          </Button>
+        )}
       </div>
 
       {/* Discussions List */}
-      <div className="space-y-6">
-        {/* Pinned */}
-        {pinnedDiscussions.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                <Pin className="h-3.5 w-3.5 text-primary" />
-              </div>
-              Pinned Discussions
-            </h3>
-            {pinnedDiscussions.map((discussion, index) => (
-              <div key={discussion.id} style={{ animationDelay: `${index * 50}ms` }}>
-                <DiscussionCard discussion={discussion} />
-              </div>
-            ))}
-          </div>
-        )}
+      {discussions.length === 0 ? (
+        <EmptyState
+          icon={<MessageSquare className="h-12 w-12" />}
+          title="No discussions yet"
+          description={
+            isFaculty
+              ? "Create your first discussion to engage with students."
+              : "This course doesn't have any discussions yet."
+          }
+          action={
+            isFaculty
+              ? {
+                  label: "Create Discussion",
+                  onClick: () => setIsCreateDialogOpen(true),
+                }
+              : undefined
+          }
+        />
+      ) : (
+        <div className="space-y-4">
+          {discussions.map((discussion) => (
+            <Card key={discussion.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CardTitle className="text-lg">
+                        <Link
+                          to={`/courses/${courseId}/discussions/${discussion.id}`}
+                          className="hover:text-primary transition-colors"
+                        >
+                          {discussion.title}
+                        </Link>
+                      </CardTitle>
+                      {!discussion.published && (
+                        <Badge variant="secondary">Draft</Badge>
+                      )}
+                    </div>
+                    <div
+                      className="text-sm text-muted-foreground line-clamp-2"
+                      dangerouslySetInnerHTML={{ __html: discussion.bodyHtml }}
+                    />
+                  </div>
+                  {isFaculty && (
+                    <div className="flex items-center gap-2 ml-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEdit(discussion)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(discussion.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span>
+                    {discussion.postCount || 0} {discussion.postCount === 1 ? "reply" : "replies"}
+                  </span>
+                  <span>•</span>
+                  <span>
+                    {discussion.createdAt
+                      ? format(parseISO(discussion.createdAt), "MMM d, yyyy 'at' h:mm a")
+                      : "Unknown date"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-        {/* Regular */}
-        {regularDiscussions.length > 0 && (
-          <div className="space-y-4">
-            {pinnedDiscussions.length > 0 && (
-              <h3 className="font-semibold text-foreground pt-4">All Discussions</h3>
-            )}
-            {regularDiscussions.map((discussion, index) => (
-              <div 
-                key={discussion.id} 
-                style={{ animationDelay: `${(index + pinnedDiscussions.length) * 50}ms` }}
-              >
-                <DiscussionCard discussion={discussion} />
-              </div>
-            ))}
+      {/* Create Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Discussion</DialogTitle>
+            <DialogDescription>
+              Create a new discussion topic for this course.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Discussion title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bodyHtml">Body</Label>
+              <Textarea
+                id="bodyHtml"
+                value={formData.bodyHtml}
+                onChange={(e) => setFormData({ ...formData, bodyHtml: e.target.value })}
+                placeholder="Discussion content (HTML supported)"
+                rows={6}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="published"
+                checked={formData.published}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, published: checked })
+                }
+              />
+              <Label htmlFor="published">Published</Label>
+            </div>
           </div>
-        )}
-
-        {filteredDiscussions.length === 0 && (
-          <div className="text-center py-16">
-            <MessageSquare className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No discussions found</h3>
-            <p className="text-muted-foreground mb-6">Try adjusting your search or start a new discussion</p>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Start Discussion
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancel
             </Button>
+            <Button onClick={handleCreate}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Discussion</DialogTitle>
+            <DialogDescription>Update the discussion details.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Discussion title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-bodyHtml">Body</Label>
+              <Textarea
+                id="edit-bodyHtml"
+                value={formData.bodyHtml}
+                onChange={(e) => setFormData({ ...formData, bodyHtml: e.target.value })}
+                placeholder="Discussion content (HTML supported)"
+                rows={6}
+              />
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="edit-published"
+                checked={formData.published}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, published: checked })
+                }
+              />
+              <Label htmlFor="edit-published">Published</Label>
+            </div>
           </div>
-        )}
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdate}>Update</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

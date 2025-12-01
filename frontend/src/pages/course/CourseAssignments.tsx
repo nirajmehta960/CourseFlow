@@ -29,6 +29,8 @@ import { getErrorMessage } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO, isAfter } from "date-fns";
 import { useCoursePermissions } from "@/hooks/useCoursePermissions";
+import { Skeleton } from "@/components/ui/skeleton";
+import EmptyState from "@/components/EmptyState";
 
 interface Assignment {
   id: string;
@@ -60,7 +62,7 @@ const CourseAssignments = () => {
   useEffect(() => {
     const fetchAssignments = async () => {
       if (!courseId) return;
-      
+
       try {
         setLoading(true);
         const data = await getAssignments(courseId);
@@ -92,8 +94,8 @@ const CourseAssignments = () => {
   // Transform API assignments to component format
   const transformAssignment = (apiAssignment: ApiAssignment): Assignment => {
     const now = new Date();
-    const dueDate = apiAssignment.dueDate ? parseISO(apiAssignment.dueDate) : null;
-    
+    const dueDate = apiAssignment.dueAt ? parseISO(apiAssignment.dueAt) : null;
+
     // Format due date string
     let dueDateStr = "No due date";
     if (dueDate) {
@@ -119,20 +121,20 @@ const CourseAssignments = () => {
   const groupedAssignments: AssignmentGroup[] = (() => {
     const now = new Date();
     const transformed = assignments.map(transformAssignment);
-    
+
     const upcoming: Assignment[] = [];
     const past: Assignment[] = [];
-    
+
     transformed.forEach((assignment) => {
       const apiAssignment = assignments.find(a => a.id === assignment.id);
-      if (!apiAssignment || !apiAssignment.dueDate) {
+      if (!apiAssignment || !apiAssignment.dueAt) {
         // If no due date, consider it upcoming
         upcoming.push(assignment);
         return;
       }
-      
+
       try {
-        const dueDate = parseISO(apiAssignment.dueDate);
+        const dueDate = parseISO(apiAssignment.dueAt);
         if (isAfter(dueDate, now)) {
           upcoming.push(assignment);
         } else {
@@ -228,8 +230,22 @@ const CourseAssignments = () => {
   if (loading) {
     return (
       <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full">
-        <div className="flex items-center justify-center py-16">
-          <p className="text-muted-foreground">Loading assignments...</p>
+        <div className="mb-6 space-y-4">
+          <Skeleton className="h-8 w-64" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+          <div className="flex gap-4">
+            <Skeleton className="h-10 flex-1" />
+            <Skeleton className="h-10 w-40" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          {[1, 2].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
         </div>
       </div>
     );
@@ -303,7 +319,7 @@ const CourseAssignments = () => {
             />
           </div>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-full md:w-[160px]">
               <Filter className="h-4 w-4 mr-2" />
               <SelectValue placeholder="All status" />
             </SelectTrigger>
@@ -361,7 +377,7 @@ const CourseAssignments = () => {
                       key={assignment.id}
                       to={`/courses/${courseId}/assignments/${assignment.id}`}
                     >
-                      <Card 
+                      <Card
                         className={cn(
                           "hover:shadow-md transition-all cursor-pointer group",
                           assignment.status === "open" && "border-primary/30"
@@ -423,11 +439,27 @@ const CourseAssignments = () => {
 
       {/* Empty State */}
       {filteredGroups.every(g => g.assignments.length === 0) && (
-        <div className="text-center py-16">
-          <FileText className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">No assignments found</h3>
-          <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
-        </div>
+        <EmptyState
+          icon={<FileText className="h-12 w-12" />}
+          title={assignments.length === 0 ? "No assignments yet" : "No assignments found"}
+          description={
+            assignments.length === 0
+              ? isFaculty
+                ? "Create your first assignment to get started."
+                : "This course doesn't have any assignments yet."
+              : "Try adjusting your search or filter criteria."
+          }
+          action={
+            assignments.length === 0 && isFaculty && courseId
+              ? {
+                label: "Create Assignment",
+                onClick: () => {
+                  window.location.href = `/courses/${courseId}/assignments/new`;
+                },
+              }
+              : undefined
+          }
+        />
       )}
     </div>
   );
