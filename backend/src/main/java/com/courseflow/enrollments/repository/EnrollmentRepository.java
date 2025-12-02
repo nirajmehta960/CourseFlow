@@ -12,7 +12,7 @@ import java.util.Optional;
  */
 @Repository
 public interface EnrollmentRepository extends MongoRepository<Enrollment, String> {
-    
+
     /**
      * Find all enrollments for a specific user.
      * 
@@ -20,7 +20,7 @@ public interface EnrollmentRepository extends MongoRepository<Enrollment, String
      * @return List of enrollments for the user
      */
     List<Enrollment> findByUserId(String userId);
-    
+
     /**
      * Find all enrollments for a specific course.
      * 
@@ -28,25 +28,25 @@ public interface EnrollmentRepository extends MongoRepository<Enrollment, String
      * @return List of enrollments for the course
      */
     List<Enrollment> findByCourseId(String courseId);
-    
+
     /**
      * Find a specific enrollment by course and user.
      * 
      * @param courseId The course ID
-     * @param userId The user ID
+     * @param userId   The user ID
      * @return Optional enrollment if found
      */
     Optional<Enrollment> findByCourseIdAndUserId(String courseId, String userId);
-    
+
     /**
      * Check if an enrollment exists for a course and user.
      * 
      * @param courseId The course ID
-     * @param userId The user ID
+     * @param userId   The user ID
      * @return true if enrollment exists, false otherwise
      */
     boolean existsByCourseIdAndUserId(String courseId, String userId);
-    
+
     /**
      * Find all active enrollments for a specific user.
      * 
@@ -55,14 +55,24 @@ public interface EnrollmentRepository extends MongoRepository<Enrollment, String
      * @return List of active enrollments for the user
      */
     List<Enrollment> findByUserIdAndStatus(String userId, Enrollment.EnrollmentStatus status);
-    
+
     /**
      * Find all enrollments for a course with a specific role.
      * 
-     * @param courseId The course ID
+     * @param courseId   The course ID
      * @param courseRole The course role
      * @return List of enrollments with the specified role
      */
     List<Enrollment> findByCourseIdAndCourseRole(String courseId, Enrollment.CourseRole courseRole);
-}
 
+    /**
+     * Count enrollments for a course with a specific role and status.
+     * 
+     * @param courseId   The course ID
+     * @param courseRole The course role
+     * @param status     The enrollment status
+     * @return Count of enrollments
+     */
+    long countByCourseIdAndCourseRoleAndStatus(String courseId, Enrollment.CourseRole courseRole,
+            Enrollment.EnrollmentStatus status);
+}

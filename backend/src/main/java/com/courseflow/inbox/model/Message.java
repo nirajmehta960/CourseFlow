@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -47,6 +48,9 @@ public class Message {
     
     @CreatedDate
     private Instant createdAt;
+    
+    @LastModifiedDate
+    private Instant updatedAt;
     
     /**
      * Array of user IDs who have read this message.

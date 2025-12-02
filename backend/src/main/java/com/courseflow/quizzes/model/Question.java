@@ -55,11 +55,11 @@ public class Question {
     private List<String> options = new ArrayList<>();
     
     /**
-     * Correct answer(s):
+     * Correct answer(s). All question types are auto-graded:
      * - MCQ: single option index (0-based) as string
      * - MULTI_SELECT: comma-separated option indices (e.g., "0,2,3")
      * - TRUE_FALSE: "true" or "false"
-     * - SHORT_ANSWER: expected answer string (for reference, auto-grading may use fuzzy matching)
+     * - SHORT_ANSWER: expected answer string (fill-in-the-blank; trim + case-insensitive match)
      */
     private String correctAnswer;
     

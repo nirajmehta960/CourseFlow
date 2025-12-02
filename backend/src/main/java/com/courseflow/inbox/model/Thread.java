@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -40,10 +41,15 @@ public class Thread {
     @Builder.Default
     private List<String> participantIds = new ArrayList<>();
     
+    @CreatedDate
+    private Instant createdAt;
+    
+    @LastModifiedDate
+    private Instant updatedAt;
+    
     /**
      * Timestamp of the last message in this thread.
      */
-    @LastModifiedDate
     private Instant lastMessageAt;
     
     /**
