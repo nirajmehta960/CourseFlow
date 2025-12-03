@@ -20,13 +20,12 @@ import java.util.List;
  * Controller for calendar endpoints.
  */
 @RestController
-@RequestMapping("/api")
 @RequiredArgsConstructor
 @Tag(name = "Calendar", description = "Calendar event management endpoints")
 public class CalendarController {
-    
+
     private final CalendarService calendarService;
-    
+
     @GetMapping("/calendar")
     @Operation(summary = "Get calendar events", description = "Get calendar events for the logged-in user within a date range.")
     public ResponseEntity<ApiResponse<List<CalendarEventResponse>>> getCalendarEvents(
@@ -35,7 +34,7 @@ public class CalendarController {
         List<CalendarEventResponse> events = calendarService.getCalendarEvents(startAt, endAt);
         return ResponseEntity.ok(ApiResponse.success(events));
     }
-    
+
     @PostMapping("/courses/{courseId}/calendar")
     @RequireInstructor
     @Operation(summary = "Create custom event", description = "Create a custom calendar event. Only instructors and TAs can create custom events.")

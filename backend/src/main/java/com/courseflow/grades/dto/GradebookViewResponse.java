@@ -17,11 +17,11 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GradebookViewResponse {
-    
+
     private String courseId;
     private List<GradebookItem> items;
     private List<StudentGradeRow> students;
-    
+
     /**
      * Gradebook item (assignment or quiz).
      */
@@ -35,7 +35,7 @@ public class GradebookViewResponse {
         private String type; // "ASSIGNMENT" or "QUIZ"
         private Double points;
     }
-    
+
     /**
      * Student grade row with grades for all items.
      */
@@ -45,12 +45,13 @@ public class GradebookViewResponse {
     @AllArgsConstructor
     public static class StudentGradeRow {
         private String studentId;
+        private String studentName;
         private Map<String, GradeCell> grades; // itemId -> grade cell
         private Double totalEarned;
         private Double totalPossible;
         private Double percent;
     }
-    
+
     /**
      * Grade cell for a specific item.
      */

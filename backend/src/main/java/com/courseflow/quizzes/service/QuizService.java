@@ -650,11 +650,15 @@ public class QuizService {
                         (a, b) -> a // In case of duplicates, keep first
                 ));
 
-        // Check each question
+        // Check each question — all types (MCQ, MULTI_SELECT, TRUE_FALSE, SHORT_ANSWER) are auto-graded
         for (Question question : questions) {
             String studentAnswer = answerMap.get(question.getId());
             if (studentAnswer == null || studentAnswer.trim().isEmpty()) {
                 continue; // No answer provided, skip (0 points)
+            }
+            String correct = question.getCorrectAnswer();
+            if (correct == null || correct.trim().isEmpty()) {
+                continue; // No correct answer configured, skip (0 points)
             }
 
             boolean isCorrect = false;
@@ -662,10 +666,10 @@ public class QuizService {
 
             switch (question.getType()) {
                 case MCQ:
-                    // Compare selected option index
+                    // Multiple choice (single answer): compare selected option index
                     try {
                         int selectedIndex = Integer.parseInt(studentAnswer.trim());
-                        int correctIndex = Integer.parseInt(question.getCorrectAnswer().trim());
+                        int correctIndex = Integer.parseInt(correct.trim());
                         isCorrect = (selectedIndex == correctIndex);
                     } catch (NumberFormatException e) {
                         isCorrect = false;
@@ -673,16 +677,18 @@ public class QuizService {
                     break;
 
                 case MULTI_SELECT:
-                    // Compare sets of selected indices
+                    // Multiple select (multiple answers): compare sets of option indices
                     try {
-                        String[] selectedIndices = studentAnswer.trim().split(",");
-                        String[] correctIndices = question.getCorrectAnswer().trim().split(",");
-
-                        java.util.Set<String> selectedSet = new java.util.HashSet<>(
-                                java.util.Arrays.asList(selectedIndices));
-                        java.util.Set<String> correctSet = new java.util.HashSet<>(
-                                java.util.Arrays.asList(correctIndices));
-
+                        java.util.Set<String> selectedSet = new java.util.HashSet<>();
+                        for (String s : studentAnswer.split(",")) {
+                            String t = s.trim();
+                            if (!t.isEmpty()) selectedSet.add(t);
+                        }
+                        java.util.Set<String> correctSet = new java.util.HashSet<>();
+                        for (String s : correct.split(",")) {
+                            String t = s.trim();
+                            if (!t.isEmpty()) correctSet.add(t);
+                        }
                         isCorrect = selectedSet.equals(correctSet);
                     } catch (Exception e) {
                         isCorrect = false;
@@ -690,15 +696,31 @@ public class QuizService {
                     break;
 
                 case TRUE_FALSE:
-                    // Compare boolean values (case-insensitive)
-                    isCorrect = question.getCorrectAnswer().trim().equalsIgnoreCase(studentAnswer.trim());
+                    // True/False: case-insensitive compare
+                    isCorrect = correct.trim().equalsIgnoreCase(studentAnswer.trim());
                     break;
 
-                case SHORT_ANSWER:
-                    // Mark as "needs review" - don't auto-grade
+                case SHORT_ANSWER: {
+                    // Fill-in-the-blank: trim + case-insensitive; also match numeric equivalence (e.g. "4" vs "4.0")
+                    String cs = correct.trim();
+                    String ss = studentAnswer.trim();
+                    if (cs.equalsIgnoreCase(ss)) {
+                        isCorrect = true;
+                    } else {
+                        try {
+                            double cNum = Double.parseDouble(cs);
+                            double sNum = Double.parseDouble(ss);
+                            isCorrect = Math.abs(cNum - sNum) < 1e-9;
+                        } catch (NumberFormatException e) {
+                            isCorrect = false;
+                        }
+                    }
+                    break;
+                }
+
+                default:
                     canAutoGrade = false;
                     fullyGraded = false;
-                    // Could implement fuzzy matching here in the future
                     break;
             }
 
@@ -750,51 +772,70 @@ public class QuizService {
                         (a, b) -> a // In case of duplicates, keep first
                 ));
 
-        // Check each question (legacy embedded questions)
+        // Check each question (legacy embedded) — all types auto-graded
         for (Quiz.Question question : quiz.getQuestions()) {
             String studentAnswer = answerMap.get(question.getQuestionId());
-            if (studentAnswer == null) {
-                continue; // No answer provided, skip (0 points)
+            if (studentAnswer == null || studentAnswer.trim().isEmpty()) {
+                continue;
+            }
+            String correct = question.getCorrectAnswer();
+            if (correct == null || correct.trim().isEmpty()) {
+                continue;
             }
 
             boolean isCorrect = false;
 
             switch (question.getType()) {
                 case MCQ:
-                    // Compare selected option index
                     try {
-                        int selectedIndex = Integer.parseInt(studentAnswer);
-                        int correctIndex = Integer.parseInt(question.getCorrectAnswer());
+                        int selectedIndex = Integer.parseInt(studentAnswer.trim());
+                        int correctIndex = Integer.parseInt(correct.trim());
                         isCorrect = (selectedIndex == correctIndex);
                     } catch (NumberFormatException e) {
-                        // Invalid answer format
                         isCorrect = false;
                     }
                     break;
 
                 case TRUE_FALSE:
-                    // Compare boolean values (case-insensitive)
-                    isCorrect = question.getCorrectAnswer().trim().equalsIgnoreCase(studentAnswer.trim());
+                    isCorrect = correct.trim().equalsIgnoreCase(studentAnswer.trim());
                     break;
 
-                case SHORT_ANSWER:
-                    // Simple string match (case-insensitive, trimmed)
-                    // Future: could implement fuzzy matching
-                    isCorrect = question.getCorrectAnswer().trim().equalsIgnoreCase(studentAnswer.trim());
+                case SHORT_ANSWER: {
+                    String cs = correct.trim();
+                    String ss = studentAnswer.trim();
+                    if (cs.equalsIgnoreCase(ss)) {
+                        isCorrect = true;
+                    } else {
+                        try {
+                            double cNum = Double.parseDouble(cs);
+                            double sNum = Double.parseDouble(ss);
+                            isCorrect = Math.abs(cNum - sNum) < 1e-9;
+                        } catch (NumberFormatException e) {
+                            isCorrect = false;
+                        }
+                    }
                     break;
+                }
 
                 case MULTI_SELECT:
-                    // Compare comma-separated indices
                     try {
-                        String[] selectedIndices = studentAnswer.split(",");
-                        String[] correctIndices = question.getCorrectAnswer().split(",");
-                        // Sort and compare
-                        java.util.Arrays.sort(selectedIndices);
-                        java.util.Arrays.sort(correctIndices);
-                        isCorrect = java.util.Arrays.equals(selectedIndices, correctIndices);
+                        java.util.Set<String> selectedSet = new java.util.HashSet<>();
+                        for (String s : studentAnswer.split(",")) {
+                            String t = s.trim();
+                            if (!t.isEmpty()) selectedSet.add(t);
+                        }
+                        java.util.Set<String> correctSet = new java.util.HashSet<>();
+                        for (String s : correct.split(",")) {
+                            String t = s.trim();
+                            if (!t.isEmpty()) correctSet.add(t);
+                        }
+                        isCorrect = selectedSet.equals(correctSet);
                     } catch (Exception e) {
                         isCorrect = false;
                     }
+                    break;
+
+                default:
                     break;
             }
 

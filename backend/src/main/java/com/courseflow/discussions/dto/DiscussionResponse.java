@@ -16,13 +16,14 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DiscussionResponse {
-    
+
     private String id;
     private String courseId;
     private String title;
     private String bodyHtml;
     private Boolean published;
     private String createdBy;
+    private String authorName;
     private Instant createdAt;
     private Instant updatedAt;
     private Long postCount;

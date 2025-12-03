@@ -51,6 +51,7 @@ public class GradebookService {
     private final EnrollmentRepository enrollmentRepository;
     private final EnrollmentService enrollmentService;
     private final AuthService authService;
+    private final com.courseflow.users.repository.UserRepository userRepository;
 
     /**
      * Get or create gradebook for a course and student.
@@ -85,7 +86,8 @@ public class GradebookService {
         } catch (DuplicateKeyException e) {
             // Race condition: another thread created it, fetch it
             gradebook = gradebookRepository.findByCourseIdAndStudentId(courseId, studentId)
-                    .orElseThrow(() -> new RuntimeException("Failed to create gradebook"));
+                    .orElseThrow(() -> new ApiException("DATABASE_ERROR",
+                            "Failed to create or fetch gradebook. Please try again.", 500));
         }
 
         return gradebook;
@@ -266,14 +268,13 @@ public class GradebookService {
 
         for (Gradebook.GradeItem item : gradebook.getItems()) {
             if (item.getPoints() != null && item.getPoints() > 0) {
-                possible += item.getPoints();
-
                 // Use override score if present, otherwise use regular score
                 Double finalScore = item.getOverrideScore() != null ? item.getOverrideScore() : item.getScore();
 
                 // Only count score if it's been graded
                 if (finalScore != null && item.getStatus() != null &&
                         item.getStatus().equals("GRADED")) {
+                    possible += item.getPoints();
                     earned += finalScore;
                 }
             }
@@ -374,8 +375,8 @@ public class GradebookService {
                     .build());
 
             if (assignment.getPoints() != null && assignment.getPoints() > 0) {
-                totalPossible += assignment.getPoints();
                 if (score != null && status.equals("GRADED")) {
+                    totalPossible += assignment.getPoints();
                     totalEarned += score;
                 }
             }
@@ -443,8 +444,8 @@ public class GradebookService {
                     .build());
 
             if (quizTotalPoints > 0) {
-                totalPossible += quizTotalPoints;
                 if (score != null && status.equals("GRADED")) {
+                    totalPossible += quizTotalPoints;
                     totalEarned += score;
                 }
             }
@@ -506,7 +507,8 @@ public class GradebookService {
         // Get all enrolled students
         List<Enrollment> enrollments = enrollmentRepository.findByCourseId(courseId);
         List<String> studentIds = enrollments.stream()
-                .filter(e -> e.getStatus() == Enrollment.EnrollmentStatus.ACTIVE)
+                .filter(e -> e.getStatus() == Enrollment.EnrollmentStatus.ACTIVE
+                        && e.getCourseRole() == Enrollment.CourseRole.STUDENT)
                 .map(Enrollment::getUserId)
                 .collect(Collectors.toList());
 
@@ -594,8 +596,8 @@ public class GradebookService {
                         .build());
 
                 if (assignment.getPoints() != null && assignment.getPoints() > 0) {
-                    totalPossible += assignment.getPoints();
                     if (score != null && status.equals("GRADED")) {
+                        totalPossible += assignment.getPoints();
                         totalEarned += score;
                     }
                 }
@@ -650,8 +652,8 @@ public class GradebookService {
                         .build());
 
                 if (quizTotalPoints > 0) {
-                    totalPossible += quizTotalPoints;
                     if (score != null && status.equals("GRADED")) {
+                        totalPossible += quizTotalPoints;
                         totalEarned += score;
                     }
                 }
@@ -659,8 +661,12 @@ public class GradebookService {
 
             double percent = totalPossible > 0 ? (totalEarned / totalPossible) * 100.0 : 0.0;
 
+            User student = userRepository.findById(studentId).orElse(null);
+            String studentName = student != null ? student.getName() : "Unknown Student";
+
             studentRows.add(GradebookViewResponse.StudentGradeRow.builder()
                     .studentId(studentId)
+                    .studentName(studentName)
                     .grades(grades)
                     .totalEarned(totalEarned)
                     .totalPossible(totalPossible)

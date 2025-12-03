@@ -18,7 +18,7 @@ import java.util.List;
  * Controller for notification endpoints.
  */
 @RestController
-@RequestMapping("/api/notifications")
+@RequestMapping("/notifications")
 @RequiredArgsConstructor
 @Tag(name = "Notifications", description = "Notification management endpoints")
 public class NotificationController {

@@ -1,5 +1,6 @@
 package com.courseflow.notifications.service;
 
+import com.courseflow.common.error.ApiException;
 import com.courseflow.enrollments.repository.EnrollmentRepository;
 import com.courseflow.notifications.dto.NotificationResponse;
 import com.courseflow.notifications.model.Notification;
@@ -70,10 +71,10 @@ public class NotificationService {
      */
     public void markAsRead(String userId, String notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
+                .orElseThrow(() -> new ApiException("NOTIFICATION_NOT_FOUND", "Notification not found", 404));
 
         if (!notification.getUserId().equals(userId)) {
-            throw new RuntimeException("Notification does not belong to user");
+            throw new ApiException("FORBIDDEN", "Notification does not belong to you", 403);
         }
 
         notification.setIsRead(true);
@@ -113,6 +114,7 @@ public class NotificationService {
                 .body(body)
                 .link(link)
                 .isRead(false)
+                .createdAt(java.time.Instant.now())
                 .build();
 
         notificationRepository.save(notification);

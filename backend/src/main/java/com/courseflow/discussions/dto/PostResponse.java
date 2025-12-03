@@ -16,10 +16,11 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PostResponse {
-    
+
     private String id;
     private String discussionId;
     private String userId;
+    private String authorName;
     private String bodyHtml;
     private String parentPostId;
     private Boolean deleted;

@@ -237,7 +237,7 @@ public class GlobalExceptionHandler {
                 ErrorResponse errorResponse = buildErrorResponse(
                                 getRequestPath(request),
                                 "INTERNAL_ERROR",
-                                "Internal Error: " + ex.getMessage(),
+                                "An unexpected error occurred. Please try again.",
                                 null);
                 return ResponseEntity
                                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
