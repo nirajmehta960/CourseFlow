@@ -2,7 +2,7 @@
  * Notifications API functions
  */
 
-import { apiFetch, ApiResponse } from './api';
+import { apiFetch, ApiResponse, getApiThrowMessage } from './api';
 
 export interface Notification {
   id: string;
@@ -20,9 +20,9 @@ export interface Notification {
  */
 export const getNotifications = async (): Promise<Notification[]> => {
   const response = await apiFetch<Notification[]>(`/notifications`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get notifications');
+    throw new Error(getApiThrowMessage(response, 'Failed to load notifications. Please try again.'));
   }
 
   return response.data;
@@ -33,9 +33,9 @@ export const getNotifications = async (): Promise<Notification[]> => {
  */
 export const getUnreadNotifications = async (): Promise<Notification[]> => {
   const response = await apiFetch<Notification[]>(`/notifications/unread`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get unread notifications');
+    throw new Error(getApiThrowMessage(response, 'Failed to load unread notifications. Please try again.'));
   }
 
   return response.data;
@@ -46,9 +46,9 @@ export const getUnreadNotifications = async (): Promise<Notification[]> => {
  */
 export const getUnreadCount = async (): Promise<number> => {
   const response = await apiFetch<number>(`/notifications/unread/count`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get unread count');
+    throw new Error(getApiThrowMessage(response, 'Failed to load notification count. Please try again.'));
   }
 
   return response.data;
@@ -63,7 +63,7 @@ export const markAsRead = async (notificationId: string): Promise<void> => {
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to mark notification as read');
+    throw new Error(getApiThrowMessage(response, 'Failed to mark notification as read. Please try again.'));
   }
 };
 
@@ -76,6 +76,6 @@ export const markAllAsRead = async (): Promise<void> => {
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to mark all notifications as read');
+    throw new Error(getApiThrowMessage(response, 'Failed to mark all notifications as read. Please try again.'));
   }
 };

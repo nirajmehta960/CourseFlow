@@ -2,7 +2,7 @@
  * Grades API functions
  */
 
-import { apiFetch, ApiResponse } from './api';
+import { apiFetch, ApiResponse, getApiThrowMessage } from './api';
 
 export interface GradeItem {
   type: 'ASSIGNMENT' | 'QUIZ';
@@ -36,9 +36,9 @@ export interface GradebookResponse {
  */
 export const getMyGradebook = async (courseId: string): Promise<GradebookResponse> => {
   const response = await apiFetch<GradebookResponse>(`/courses/${courseId}/grades/me`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get gradebook');
+    throw new Error(getApiThrowMessage(response, 'Failed to load gradebook. Please try again.'));
   }
 
   return response.data;
@@ -49,9 +49,9 @@ export const getMyGradebook = async (courseId: string): Promise<GradebookRespons
  */
 export const getAllGradebooks = async (courseId: string): Promise<GradebookResponse[]> => {
   const response = await apiFetch<GradebookResponse[]>(`/courses/${courseId}/grades`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get gradebooks');
+    throw new Error(getApiThrowMessage(response, 'Failed to load gradebooks. Please try again.'));
   }
 
   return response.data;
@@ -65,9 +65,9 @@ export const getStudentGradebook = async (
   studentId: string
 ): Promise<GradebookResponse> => {
   const response = await apiFetch<GradebookResponse>(`/courses/${courseId}/grades/${studentId}`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get student gradebook');
+    throw new Error(getApiThrowMessage(response, 'Failed to load student gradebook. Please try again.'));
   }
 
   return response.data;
@@ -78,9 +78,9 @@ export const getStudentGradebook = async (
  */
 export const getGradebookView = async (courseId: string): Promise<GradebookViewResponse> => {
   const response = await apiFetch<GradebookViewResponse>(`/courses/${courseId}/grades/gradebook`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get gradebook view');
+    throw new Error(getApiThrowMessage(response, 'Failed to load gradebook. Please try again.'));
   }
 
   return response.data;
@@ -96,7 +96,7 @@ export const overrideGrade = async (data: GradeOverrideRequest): Promise<void> =
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to override grade');
+    throw new Error(getApiThrowMessage(response, 'Failed to override grade. Please try again.'));
   }
 };
 
@@ -115,6 +115,7 @@ export interface GradebookItem {
 
 export interface StudentGradeRow {
   studentId: string;
+  studentName?: string;
   grades: Record<string, GradeCell>;
   totalEarned: number;
   totalPossible: number;

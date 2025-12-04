@@ -2,7 +2,7 @@
  * User management API functions
  */
 
-import { apiFetch, ApiResponse } from './api';
+import { apiFetch, ApiResponse, getApiThrowMessage } from './api';
 import { UserInfo } from './auth-api';
 
 export interface UpdateUserRolesRequest {
@@ -22,7 +22,7 @@ export const updateUserRoles = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to update user roles');
+    throw new Error(getApiThrowMessage(response, 'Failed to update user roles. Please try again.'));
   }
 
   return response.data;
@@ -35,7 +35,7 @@ export const getAllUsers = async (): Promise<UserInfo[]> => {
   const response = await apiFetch<UserInfo[]>('/users');
 
   if (!response.data) {
-    throw new Error('Failed to get users');
+    throw new Error(getApiThrowMessage(response, 'Failed to load users. Please try again.'));
   }
 
   return response.data;

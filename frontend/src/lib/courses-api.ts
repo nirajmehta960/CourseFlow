@@ -2,7 +2,7 @@
  * Courses API functions
  */
 
-import { apiFetch, ApiResponse } from './api';
+import { apiFetch, ApiResponse, getApiThrowMessage } from './api';
 
 export interface Course {
   id: string;
@@ -36,9 +36,9 @@ export interface CourseRequest {
  */
 export const getMyCourses = async (): Promise<Course[]> => {
   const response = await apiFetch<Course[]>('/courses');
-  
+
   if (!response.data) {
-    throw new Error('Failed to get courses');
+    throw new Error(getApiThrowMessage(response, 'Failed to load courses. Please try again.'));
   }
 
   return response.data;
@@ -49,9 +49,9 @@ export const getMyCourses = async (): Promise<Course[]> => {
  */
 export const getAllPublishedCourses = async (): Promise<Course[]> => {
   const response = await apiFetch<Course[]>('/courses/browse');
-  
+
   if (!response.data) {
-    throw new Error('Failed to get all courses');
+    throw new Error(getApiThrowMessage(response, 'Failed to load courses. Please try again.'));
   }
 
   return response.data;
@@ -62,9 +62,9 @@ export const getAllPublishedCourses = async (): Promise<Course[]> => {
  */
 export const getCourseById = async (courseId: string): Promise<Course> => {
   const response = await apiFetch<Course>(`/courses/${courseId}`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get course');
+    throw new Error(getApiThrowMessage(response, 'Failed to load course. Please try again.'));
   }
 
   return response.data;
@@ -80,7 +80,7 @@ export const createCourse = async (data: CourseRequest): Promise<Course> => {
   });
 
   if (!response.data) {
-    throw new Error('Failed to create course');
+    throw new Error(getApiThrowMessage(response, 'Failed to create course. Please try again.'));
   }
 
   return response.data;
@@ -99,7 +99,7 @@ export const updateCourse = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to update course');
+    throw new Error(getApiThrowMessage(response, 'Failed to update course. Please try again.'));
   }
 
   return response.data;
@@ -140,9 +140,9 @@ export interface Enrollment {
  */
 export const getCoursePeople = async (courseId: string): Promise<CoursePeopleResponse> => {
   const response = await apiFetch<CoursePeopleResponse>(`/courses/${courseId}/people`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get course people');
+    throw new Error(getApiThrowMessage(response, 'Failed to load course people. Please try again.'));
   }
 
   return response.data;
@@ -157,7 +157,7 @@ export const selfEnrollInCourse = async (courseId: string): Promise<void> => {
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to enroll in course');
+    throw new Error(getApiThrowMessage(response, 'Failed to enroll in course. Please try again.'));
   }
 };
 
@@ -174,7 +174,7 @@ export const enrollByEmail = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to enroll user');
+    throw new Error(getApiThrowMessage(response, 'Failed to enroll user. Please try again.'));
   }
 
   return response.data;
@@ -194,7 +194,7 @@ export const updateEnrollment = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to update enrollment');
+    throw new Error(getApiThrowMessage(response, 'Failed to update enrollment. Please try again.'));
   }
 
   return response.data;
@@ -209,7 +209,23 @@ export const deleteCourse = async (courseId: string): Promise<void> => {
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to delete course');
+    throw new Error(getApiThrowMessage(response, 'Failed to delete course. Please try again.'));
   }
 };
+export interface CourseStats {
+  totalStudents: number;
+  submissionsPending: number;
+}
 
+/**
+ * Get course statistics (instructor only)
+ */
+export const getCourseStats = async (courseId: string): Promise<CourseStats> => {
+  const response = await apiFetch<CourseStats>(`/courses/${courseId}/stats`);
+
+  if (!response.data) {
+    throw new Error(getApiThrowMessage(response, 'Failed to load course stats. Please try again.'));
+  }
+
+  return response.data;
+};

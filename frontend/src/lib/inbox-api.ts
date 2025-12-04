@@ -2,7 +2,7 @@
  * Inbox API functions
  */
 
-import { apiFetch, ApiResponse } from './api';
+import { apiFetch, ApiResponse, getApiThrowMessage } from './api';
 
 export interface Conversation {
   id: string;
@@ -51,7 +51,7 @@ export const getConversations = async (
   const response = await apiFetch<Conversation[]>(`/inbox?${params.toString()}`);
   
   if (!response.data) {
-    throw new Error('Failed to get conversations');
+    throw new Error(getApiThrowMessage(response, 'Failed to load conversations. Please try again.'));
   }
 
   return response.data;
@@ -64,7 +64,7 @@ export const getConversation = async (conversationId: string): Promise<Conversat
   const response = await apiFetch<Conversation>(`/inbox/${conversationId}`);
   
   if (!response.data) {
-    throw new Error('Failed to get conversation');
+    throw new Error(getApiThrowMessage(response, 'Failed to load conversation. Please try again.'));
   }
 
   return response.data;
@@ -86,7 +86,7 @@ export const createConversation = async (
   });
 
   if (!response.data) {
-    throw new Error(response.message || 'Failed to create conversation');
+    throw new Error(getApiThrowMessage(response, 'Failed to create conversation. Please try again.'));
   }
 
   return response.data;
@@ -99,7 +99,7 @@ export const getMessages = async (conversationId: string): Promise<Message[]> =>
   const response = await apiFetch<Message[]>(`/inbox/${conversationId}/messages`);
   
   if (!response.data) {
-    throw new Error('Failed to get messages');
+    throw new Error(getApiThrowMessage(response, 'Failed to load messages. Please try again.'));
   }
 
   return response.data;
@@ -118,7 +118,7 @@ export const sendMessage = async (
   });
 
   if (!response.data) {
-    throw new Error(response.message || 'Failed to send message');
+    throw new Error(getApiThrowMessage(response, 'Failed to send message. Please try again.'));
   }
 
   return response.data;
@@ -133,7 +133,7 @@ export const markConversationRead = async (conversationId: string): Promise<void
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to mark conversation as read');
+    throw new Error(getApiThrowMessage(response, 'Failed to mark conversation as read. Please try again.'));
   }
 };
 
@@ -146,7 +146,7 @@ export const toggleStar = async (messageId: string): Promise<Message> => {
   });
 
   if (!response.data) {
-    throw new Error(response.message || 'Failed to toggle star');
+    throw new Error(getApiThrowMessage(response, 'Failed to update star. Please try again.'));
   }
 
   return response.data;

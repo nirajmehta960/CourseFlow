@@ -2,7 +2,7 @@
  * Quizzes API functions (Canvas-like structure)
  */
 
-import { apiFetch } from './api';
+import { apiFetch, getApiThrowMessage } from './api';
 
 export type QuestionType = 'MCQ' | 'MULTI_SELECT' | 'TRUE_FALSE' | 'SHORT_ANSWER';
 
@@ -76,9 +76,9 @@ export interface QuizAttemptRequest {
  */
 export const getQuizzes = async (courseId: string): Promise<Quiz[]> => {
   const response = await apiFetch<Quiz[]>(`/courses/${courseId}/quizzes`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get quizzes');
+    throw new Error(getApiThrowMessage(response, 'Failed to load quizzes. Please try again.'));
   }
 
   return response.data;
@@ -89,9 +89,9 @@ export const getQuizzes = async (courseId: string): Promise<Quiz[]> => {
  */
 export const getQuiz = async (courseId: string, quizId: string): Promise<Quiz> => {
   const response = await apiFetch<Quiz>(`/courses/${courseId}/quizzes/${quizId}`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get quiz');
+    throw new Error(getApiThrowMessage(response, 'Failed to load quiz. Please try again.'));
   }
 
   return response.data;
@@ -107,7 +107,7 @@ export const createQuiz = async (courseId: string, data: QuizRequest): Promise<Q
   });
 
   if (!response.data) {
-    throw new Error('Failed to create quiz');
+    throw new Error(getApiThrowMessage(response, 'Failed to create quiz. Please try again.'));
   }
 
   return response.data;
@@ -127,7 +127,7 @@ export const updateQuiz = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to update quiz');
+    throw new Error(getApiThrowMessage(response, 'Failed to update quiz. Please try again.'));
   }
 
   return response.data;
@@ -143,44 +143,46 @@ export const deleteQuiz = async (courseId: string, quizId: string): Promise<void
 };
 
 /**
- * Start a quiz attempt (without courseId)
+ * Start a quiz attempt
  */
-export const startQuizAttempt = async (quizId: string): Promise<QuizAttempt> => {
-  const response = await apiFetch<QuizAttempt>(`/quizzes/${quizId}/start`, {
+export const startQuizAttempt = async (courseId: string, quizId: string): Promise<QuizAttempt> => {
+  const response = await apiFetch<QuizAttempt>(`/courses/${courseId}/quizzes/${quizId}/start`, {
     method: 'POST',
   });
 
   if (!response.data) {
-    throw new Error('Failed to start quiz attempt');
+    throw new Error(getApiThrowMessage(response, 'Failed to start quiz attempt. Please try again.'));
   }
 
   return response.data;
 };
 
 /**
- * Submit a quiz attempt (without courseId)
+ * Submit a quiz attempt
  */
 export const submitQuizAttempt = async (
+  courseId: string,
   quizId: string,
+  attemptId: string,
   data: QuizAttemptRequest
 ): Promise<QuizAttempt> => {
-  const response = await apiFetch<QuizAttempt>(`/quizzes/${quizId}/submit`, {
+  const response = await apiFetch<QuizAttempt>(`/courses/${courseId}/quizzes/${quizId}/attempts/${attemptId}/submit`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
   if (!response.data) {
-    throw new Error('Failed to submit quiz attempt');
+    throw new Error(getApiThrowMessage(response, 'Failed to submit quiz attempt. Please try again.'));
   }
 
   return response.data;
 };
 
 /**
- * Get student's current attempt (without courseId)
+ * Get student's current attempt
  */
-export const getMyAttempt = async (quizId: string): Promise<QuizAttempt | null> => {
-  const response = await apiFetch<QuizAttempt>(`/quizzes/${quizId}/my-attempt`);
+export const getMyAttempt = async (courseId: string, quizId: string): Promise<QuizAttempt | null> => {
+  const response = await apiFetch<QuizAttempt>(`/courses/${courseId}/quizzes/${quizId}/my-attempt`);
 
   if (!response.data) {
     return null;
@@ -190,13 +192,13 @@ export const getMyAttempt = async (quizId: string): Promise<QuizAttempt | null> 
 };
 
 /**
- * Get all attempts for a quiz (instructor only, without courseId)
+ * Get all attempts for a quiz (instructor only)
  */
-export const getQuizAttempts = async (quizId: string): Promise<QuizAttempt[]> => {
-  const response = await apiFetch<QuizAttempt[]>(`/quizzes/${quizId}/attempts`);
+export const getQuizAttempts = async (courseId: string, quizId: string): Promise<QuizAttempt[]> => {
+  const response = await apiFetch<QuizAttempt[]>(`/courses/${courseId}/quizzes/${quizId}/attempts`);
 
   if (!response.data) {
-    throw new Error('Failed to get quiz attempts');
+    throw new Error(getApiThrowMessage(response, 'Failed to load quiz attempts. Please try again.'));
   }
 
   return response.data;

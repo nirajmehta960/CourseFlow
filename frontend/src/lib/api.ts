@@ -107,6 +107,15 @@ export const parseError = (error: any): StandardError | null => {
 };
 
 /**
+ * Build error message when API returns success but missing expected data.
+ * Use response.error?.message or response.message when available.
+ */
+export const getApiThrowMessage = (
+  response: { error?: { message?: string }; message?: string },
+  fallback: string
+): string => response.error?.message || response.message || fallback;
+
+/**
  * Extract error message from API error response
  */
 export const getErrorMessage = (error: any): string => {

@@ -2,7 +2,7 @@
  * Discussions API functions
  */
 
-import { apiFetch, ApiResponse } from './api';
+import { apiFetch, ApiResponse, getApiThrowMessage } from './api';
 
 export interface Discussion {
   id: string;
@@ -11,6 +11,7 @@ export interface Discussion {
   bodyHtml: string;
   published: boolean;
   createdBy: string;
+  authorName?: string;
   createdAt: string;
   updatedAt: string;
   postCount?: number;
@@ -21,6 +22,7 @@ export interface Post {
   id: string;
   discussionId: string;
   userId: string;
+  authorName?: string;
   bodyHtml: string;
   parentPostId?: string | null;
   deleted?: boolean;
@@ -50,9 +52,9 @@ export const getDiscussions = async (
   const response = await apiFetch<Discussion[]>(
     `/courses/${courseId}/discussions?includeUnpublished=${includeUnpublished}`
   );
-  
+
   if (!response.data) {
-    throw new Error('Failed to get discussions');
+    throw new Error(getApiThrowMessage(response, 'Failed to load discussions. Please try again.'));
   }
 
   return response.data;
@@ -68,9 +70,9 @@ export const getDiscussion = async (
   const response = await apiFetch<Discussion>(
     `/courses/${courseId}/discussions/${discussionId}`
   );
-  
+
   if (!response.data) {
-    throw new Error('Failed to get discussion');
+    throw new Error(getApiThrowMessage(response, 'Failed to load discussion. Please try again.'));
   }
 
   return response.data;
@@ -89,7 +91,7 @@ export const createDiscussion = async (
   });
 
   if (!response.data) {
-    throw new Error(response.message || 'Failed to create discussion');
+    throw new Error(getApiThrowMessage(response, 'Failed to create discussion. Please try again.'));
   }
 
   return response.data;
@@ -112,7 +114,7 @@ export const updateDiscussion = async (
   );
 
   if (!response.data) {
-    throw new Error(response.message || 'Failed to update discussion');
+    throw new Error(getApiThrowMessage(response, 'Failed to update discussion. Please try again.'));
   }
 
   return response.data;
@@ -130,7 +132,7 @@ export const deleteDiscussion = async (
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to delete discussion');
+    throw new Error(getApiThrowMessage(response, 'Failed to delete discussion. Please try again.'));
   }
 };
 
@@ -151,7 +153,7 @@ export const createPost = async (
   );
 
   if (!response.data) {
-    throw new Error(response.message || 'Failed to create post');
+    throw new Error(getApiThrowMessage(response, 'Failed to create post. Please try again.'));
   }
 
   return response.data;
@@ -171,7 +173,7 @@ export const updatePost = async (
   });
 
   if (!response.data) {
-    throw new Error(response.message || 'Failed to update post');
+    throw new Error(getApiThrowMessage(response, 'Failed to update post. Please try again.'));
   }
 
   return response.data;
@@ -186,6 +188,6 @@ export const deletePost = async (courseId: string, postId: string): Promise<void
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to delete post');
+    throw new Error(getApiThrowMessage(response, 'Failed to delete post. Please try again.'));
   }
 };

@@ -2,7 +2,7 @@
  * Authentication API functions
  */
 
-import { apiFetch, setAccessToken, removeAccessToken, ApiResponse } from './api';
+import { apiFetch, setAccessToken, removeAccessToken, ApiResponse, getApiThrowMessage } from './api';
 
 export interface SignUpRequest {
   name: string;
@@ -43,7 +43,7 @@ export const signUp = async (data: SignUpRequest): Promise<AuthResponse> => {
     }
 
     if (!response.data) {
-      throw new Error('Failed to sign up');
+      throw new Error(getApiThrowMessage(response, 'Failed to sign up. Please try again.'));
     }
 
     return response.data;
@@ -68,7 +68,7 @@ export const signIn = async (data: SignInRequest): Promise<AuthResponse> => {
     }
 
     if (!response.data) {
-      throw new Error('Failed to sign in');
+      throw new Error(getApiThrowMessage(response, 'Failed to sign in. Please try again.'));
     }
 
     return response.data;
@@ -100,7 +100,7 @@ export const getCurrentUser = async (): Promise<UserInfo> => {
   const response = await apiFetch<UserInfo>('/auth/me');
   
   if (!response.data) {
-    throw new Error('Failed to get current user');
+    throw new Error(getApiThrowMessage(response, 'Failed to load user. Please try again.'));
   }
 
   return response.data;
@@ -119,7 +119,7 @@ export const refreshToken = async (): Promise<AuthResponse> => {
   }
 
   if (!response.data) {
-    throw new Error('Failed to refresh token');
+    throw new Error(getApiThrowMessage(response, 'Failed to refresh session. Please try again.'));
   }
 
   return response.data;

@@ -2,7 +2,7 @@
  * Modules API functions (Canvas-like structure)
  */
 
-import { apiFetch, ApiResponse } from './api';
+import { apiFetch, ApiResponse, getApiThrowMessage } from './api';
 
 export type ModuleItemType = 'PAGE' | 'ASSIGNMENT' | 'QUIZ' | 'FILE' | 'URL';
 
@@ -79,7 +79,7 @@ export const getModules = async (courseId: string): Promise<ModulesResponse> => 
   const response = await apiFetch<ModulesResponse>(`/courses/${courseId}/modules`);
   
   if (!response.data) {
-    throw new Error('Failed to get modules');
+    throw new Error(getApiThrowMessage(response, 'Failed to load modules. Please try again.'));
   }
 
   return response.data;
@@ -98,7 +98,7 @@ export const createModule = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to create module');
+    throw new Error(getApiThrowMessage(response, 'Failed to create module. Please try again.'));
   }
 
   return response.data;
@@ -117,7 +117,7 @@ export const updateModule = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to update module');
+    throw new Error(getApiThrowMessage(response, 'Failed to update module. Please try again.'));
   }
 
   return response.data;
@@ -132,7 +132,7 @@ export const deleteModule = async (moduleId: string): Promise<void> => {
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to delete module');
+    throw new Error(getApiThrowMessage(response, 'Failed to delete module. Please try again.'));
   }
 };
 
@@ -149,7 +149,7 @@ export const createModuleItem = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to create module item');
+    throw new Error(getApiThrowMessage(response, 'Failed to create module item. Please try again.'));
   }
 
   return response.data;
@@ -168,7 +168,7 @@ export const updateModuleItem = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to update module item');
+    throw new Error(getApiThrowMessage(response, 'Failed to update module item. Please try again.'));
   }
 
   return response.data;
@@ -183,7 +183,7 @@ export const deleteModuleItem = async (itemId: string): Promise<void> => {
   });
 
   if (!response.success) {
-    throw new Error(response.message || 'Failed to delete module item');
+    throw new Error(getApiThrowMessage(response, 'Failed to delete module item. Please try again.'));
   }
 };
 
@@ -200,7 +200,7 @@ export const reorderModules = async (
   });
 
   if (!response.data) {
-    throw new Error('Failed to reorder modules');
+    throw new Error(getApiThrowMessage(response, 'Failed to reorder modules. Please try again.'));
   }
 
   return response.data;

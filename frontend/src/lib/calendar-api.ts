@@ -2,7 +2,7 @@
  * Calendar API functions
  */
 
-import { apiFetch, ApiResponse } from './api';
+import { apiFetch, ApiResponse, getApiThrowMessage } from './api';
 
 export interface CalendarEvent {
   id: string;
@@ -40,7 +40,7 @@ export const getCalendarEvents = async (
   const response = await apiFetch<CalendarEvent[]>(url);
   
   if (!response.data) {
-    throw new Error('Failed to get calendar events');
+    throw new Error(getApiThrowMessage(response, 'Failed to load calendar events. Please try again.'));
   }
 
   return response.data;
@@ -59,7 +59,7 @@ export const createCustomEvent = async (
   });
 
   if (!response.data) {
-    throw new Error(response.message || 'Failed to create calendar event');
+    throw new Error(getApiThrowMessage(response, 'Failed to create calendar event. Please try again.'));
   }
 
   return response.data;

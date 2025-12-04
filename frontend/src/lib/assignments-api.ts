@@ -2,7 +2,7 @@
  * Assignments API functions
  */
 
-import { apiFetch } from './api';
+import { apiFetch, getApiThrowMessage } from './api';
 
 export interface Assignment {
   id: string;
@@ -73,22 +73,22 @@ export interface FileUploadResponse {
  */
 export const getAssignments = async (courseId: string): Promise<Assignment[]> => {
   const response = await apiFetch<Assignment[]>(`/courses/${courseId}/assignments`);
-  
+
   if (!response.data) {
-    throw new Error('Failed to get assignments');
+    throw new Error(getApiThrowMessage(response, 'Failed to load assignments. Please try again.'));
   }
 
   return response.data;
 };
 
 /**
- * Get a single assignment by ID (without courseId)
+ * Get a single assignment by ID
  */
-export const getAssignment = async (assignmentId: string): Promise<Assignment> => {
-  const response = await apiFetch<Assignment>(`/assignments/${assignmentId}`);
-  
+export const getAssignment = async (courseId: string, assignmentId: string): Promise<Assignment> => {
+  const response = await apiFetch<Assignment>(`/courses/${courseId}/assignments/${assignmentId}`);
+
   if (!response.data) {
-    throw new Error('Failed to get assignment');
+    throw new Error(getApiThrowMessage(response, 'Failed to load assignment. Please try again.'));
   }
 
   return response.data;
@@ -97,11 +97,11 @@ export const getAssignment = async (assignmentId: string): Promise<Assignment> =
 /**
  * Get all submissions for an assignment (instructor only)
  */
-export const getSubmissions = async (assignmentId: string): Promise<Submission[]> => {
-  const response = await apiFetch<Submission[]>(`/assignments/${assignmentId}/submissions`);
-  
+export const getSubmissions = async (courseId: string, assignmentId: string): Promise<Submission[]> => {
+  const response = await apiFetch<Submission[]>(`/courses/${courseId}/assignments/${assignmentId}/submissions`);
+
   if (!response.data) {
-    throw new Error('Failed to get submissions');
+    throw new Error(getApiThrowMessage(response, 'Failed to load submissions. Please try again.'));
   }
 
   return response.data;
@@ -110,9 +110,9 @@ export const getSubmissions = async (assignmentId: string): Promise<Submission[]
 /**
  * Get student's own submission for an assignment
  */
-export const getMySubmission = async (assignmentId: string): Promise<Submission | null> => {
-  const response = await apiFetch<Submission>(`/assignments/${assignmentId}/my-submission`);
-  
+export const getMySubmission = async (courseId: string, assignmentId: string): Promise<Submission | null> => {
+  const response = await apiFetch<Submission>(`/courses/${courseId}/assignments/${assignmentId}/my-submission`);
+
   if (!response.data) {
     return null;
   }
@@ -130,26 +130,27 @@ export const createAssignment = async (courseId: string, data: AssignmentRequest
   });
 
   if (!response.data) {
-    throw new Error('Failed to create assignment');
+    throw new Error(getApiThrowMessage(response, 'Failed to create assignment. Please try again.'));
   }
 
   return response.data;
 };
 
 /**
- * Update an assignment (without courseId)
+ * Update an assignment
  */
 export const updateAssignment = async (
+  courseId: string,
   assignmentId: string,
   data: AssignmentRequest
 ): Promise<Assignment> => {
-  const response = await apiFetch<Assignment>(`/assignments/${assignmentId}`, {
+  const response = await apiFetch<Assignment>(`/courses/${courseId}/assignments/${assignmentId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 
   if (!response.data) {
-    throw new Error('Failed to update assignment');
+    throw new Error(getApiThrowMessage(response, 'Failed to update assignment. Please try again.'));
   }
 
   return response.data;
@@ -165,38 +166,41 @@ export const deleteAssignment = async (courseId: string, assignmentId: string): 
 };
 
 /**
- * Submit an assignment (without courseId)
+ * Submit an assignment
  */
 export const submitAssignment = async (
+  courseId: string,
   assignmentId: string,
   data: SubmissionRequest
 ): Promise<Submission> => {
-  const response = await apiFetch<Submission>(`/assignments/${assignmentId}/submit`, {
+  const response = await apiFetch<Submission>(`/courses/${courseId}/assignments/${assignmentId}/submit`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
 
   if (!response.data) {
-    throw new Error('Failed to submit assignment');
+    throw new Error(getApiThrowMessage(response, 'Failed to submit assignment. Please try again.'));
   }
 
   return response.data;
 };
 
 /**
- * Grade a submission (without courseId/assignmentId)
+ * Grade a submission
  */
 export const gradeSubmission = async (
+  courseId: string,
+  assignmentId: string,
   submissionId: string,
   data: GradeSubmissionRequest
 ): Promise<Submission> => {
-  const response = await apiFetch<Submission>(`/submissions/${submissionId}/grade`, {
+  const response = await apiFetch<Submission>(`/courses/${courseId}/assignments/${assignmentId}/submissions/${submissionId}/grade`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
 
   if (!response.data) {
-    throw new Error('Failed to grade submission');
+    throw new Error(getApiThrowMessage(response, 'Failed to grade submission. Please try again.'));
   }
 
   return response.data;
@@ -212,7 +216,7 @@ export const uploadFile = async (data: FileUploadRequest): Promise<FileUploadRes
   });
 
   if (!response.data) {
-    throw new Error('Failed to upload file');
+    throw new Error(getApiThrowMessage(response, 'Failed to upload file. Please try again.'));
   }
 
   return response.data;
