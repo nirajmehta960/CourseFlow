@@ -31,7 +31,7 @@ const AuthLayout = () => {
           </div>
         </div>
         <p className="text-sm text-sidebar-muted">
-          © 2024 CourseFlow. Empowering education.
+          (c) 2024 CourseFlow. Empowering education.
         </p>
       </div>
 

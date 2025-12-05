@@ -419,7 +419,7 @@ const QuizEditorNew = () => {
                         onClick={() => handleMoveQuestion(index, "up")}
                         disabled={index === 0}
                       >
-                        ↑
+                        ^
                       </Button>
                       <Button
                         variant="ghost"
@@ -428,7 +428,7 @@ const QuizEditorNew = () => {
                         onClick={() => handleMoveQuestion(index, "down")}
                         disabled={index === questions.length - 1}
                       >
-                        ↓
+                        v
                       </Button>
                     </div>
                     <div className="flex-1">

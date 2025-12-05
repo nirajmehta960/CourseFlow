@@ -386,6 +386,11 @@ const Courses = () => {
                     setCourses(Array.from(courseMap.values()));
                   } catch (error) {
                     console.error("Failed to refresh courses:", error);
+                    toast({
+                      title: "Error",
+                      description: getErrorMessage(error),
+                      variant: "destructive",
+                    });
                   } finally {
                     setLoading(false);
                   }

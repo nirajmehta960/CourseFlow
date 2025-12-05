@@ -32,7 +32,7 @@ import {
   startQuizAttempt,
   submitQuizAttempt,
   Quiz,
-  QuizAttempt,
+  QuizAttempt as QuizAttemptModel,
   Answer,
 } from "@/lib/quizzes-api";
 import { getErrorMessage } from "@/lib/api";
@@ -43,7 +43,7 @@ const QuizAttempt = () => {
   const { courseId, quizId } = useParams<{ courseId: string; quizId: string }>();
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [attempt, setAttempt] = useState<QuizAttempt | null>(null);
+  const [attempt, setAttempt] = useState<QuizAttemptModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -69,11 +69,14 @@ const QuizAttempt = () => {
       setLoading(true);
       const [quizData, attemptData] = await Promise.all([
         getQuiz(courseId, quizId),
-        getMyAttempt(quizId).catch(() => null),
+        getMyAttempt(courseId, quizId).catch((e) => {
+          console.error("Failed to load your attempt:", getErrorMessage(e));
+          return null;
+        }),
       ]);
 
       setQuiz(quizData);
-      
+
       if (attemptData) {
         setAttempt(attemptData);
         // Load existing answers
@@ -82,13 +85,13 @@ const QuizAttempt = () => {
           answerMap[a.questionId] = a.answer;
         });
         setAnswers(answerMap);
-        
+
         if (attemptData.status === "SUBMITTED") {
           setShowResults(true);
         }
       } else {
         // Start new attempt
-        const newAttempt = await startQuizAttempt(quizId);
+        const newAttempt = await startQuizAttempt(courseId, quizId);
         setAttempt(newAttempt);
       }
     } catch (error) {
@@ -107,20 +110,20 @@ const QuizAttempt = () => {
     if (quiz?.timeLimitMinutes && attempt && attempt.status === "IN_PROGRESS") {
       const startTime = parseISO(attempt.startedAt).getTime();
       const timeLimitMs = quiz.timeLimitMinutes * 60 * 1000;
-      
+
       const updateTimer = () => {
         const elapsed = Date.now() - startTime;
         const remaining = Math.max(0, timeLimitMs - elapsed);
         setTimeRemaining(Math.floor(remaining / 1000));
-        
+
         if (remaining <= 0) {
           handleAutoSubmit();
         }
       };
-      
+
       updateTimer();
       timerIntervalRef.current = setInterval(updateTimer, 1000);
-      
+
       return () => {
         if (timerIntervalRef.current) {
           clearInterval(timerIntervalRef.current);
@@ -138,7 +141,7 @@ const QuizAttempt = () => {
       const current = prev[questionId] || "";
       const indices = current ? current.split(",").filter(Boolean) : [];
       const indexStr = optionIndex.toString();
-      
+
       if (indices.includes(indexStr)) {
         return { ...prev, [questionId]: indices.filter(i => i !== indexStr).join(",") };
       } else {
@@ -148,7 +151,7 @@ const QuizAttempt = () => {
   };
 
   const handleSubmit = async () => {
-    if (!quizId || !quiz) return;
+    if (!courseId || !quizId || !quiz || !attempt) return;
 
     try {
       setSubmitting(true);
@@ -157,11 +160,23 @@ const QuizAttempt = () => {
         answer: answers[q.id] || "",
       }));
 
-      const submitted = await submitQuizAttempt(quizId, { answers: answerList });
+      const submitted = await submitQuizAttempt(courseId, quizId, attempt.id, { answers: answerList });
       setAttempt(submitted);
+
+      // Sync answers from submitted attempt (source of truth)
+      const submittedMap: Record<string, string> = {};
+      submitted.answers.forEach((a) => {
+        submittedMap[a.questionId] = a.answer;
+      });
+      setAnswers(submittedMap);
+
+      // Refetch quiz so we get correctAnswer (only included after student has submitted)
+      const quizWithAnswers = await getQuiz(courseId, quizId);
+      setQuiz(quizWithAnswers);
+
       setShowResults(true);
       setShowSubmitDialog(false);
-      
+
       toast({
         title: "Success",
         description: "Quiz submitted successfully",
@@ -195,29 +210,45 @@ const QuizAttempt = () => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const isAnswerCorrect = (questionId: string) => {
+  const isAnswerCorrect = (questionId: string): boolean | null => {
     if (!quiz || !attempt || attempt.status !== "SUBMITTED") return null;
     const question = quiz.questions.find((q) => q.id === questionId);
     if (!question || !question.correctAnswer) return null;
-    
-    const studentAnswer = answers[questionId] || "";
-    
+
+    const studentAnswer = (answers[questionId] ?? "").trim();
+    const correct = question.correctAnswer.trim();
+
     switch (question.type) {
       case "MCQ":
-        return studentAnswer === question.correctAnswer;
-      case "MULTI_SELECT":
-        const studentIndices = new Set(studentAnswer.split(",").filter(Boolean).sort());
-        const correctIndices = new Set(question.correctAnswer.split(",").filter(Boolean).sort());
+        return studentAnswer === correct;
+      case "MULTI_SELECT": {
+        const studentIndices = new Set(
+          studentAnswer.split(",").map((s) => s.trim()).filter(Boolean)
+        );
+        const correctIndices = new Set(
+          correct.split(",").map((s) => s.trim()).filter(Boolean)
+        );
         return studentIndices.size === correctIndices.size &&
-               Array.from(studentIndices).every(i => correctIndices.has(i));
+          Array.from(studentIndices).every((i) => correctIndices.has(i));
+      }
       case "TRUE_FALSE":
-        return studentAnswer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim();
-      case "SHORT_ANSWER":
-        return null; // Needs review
+        return studentAnswer.toLowerCase() === correct.toLowerCase();
+      case "SHORT_ANSWER": {
+        const s = studentAnswer.toLowerCase();
+        const c = correct.toLowerCase();
+        if (s === c) return true;
+        const sNum = parseFloat(studentAnswer);
+        const cNum = parseFloat(correct);
+        if (Number.isFinite(sNum) && Number.isFinite(cNum)) return sNum === cNum;
+        return false;
+      }
       default:
         return null;
     }
   };
+
+  const hasCorrectAnswer = (q: { correctAnswer?: string | null }) =>
+    !!q.correctAnswer && String(q.correctAnswer).trim().length > 0;
 
   if (loading) {
     return (
@@ -272,7 +303,7 @@ const QuizAttempt = () => {
             <div className="space-y-6">
               {quiz.questions.map((question, index) => {
                 const isCorrect = isAnswerCorrect(question.id);
-                const studentAnswer = answers[question.id] || "";
+                const studentAnswer = (answers[question.id] ?? "").trim();
 
                 return (
                   <Card key={question.id}>
@@ -293,7 +324,7 @@ const QuizAttempt = () => {
                               Incorrect
                             </Badge>
                           )}
-                          {isCorrect === null && question.type === "SHORT_ANSWER" && (
+                          {isCorrect === null && (
                             <Badge variant="secondary" className="gap-1">
                               <AlertCircle className="h-3 w-3" />
                               Needs Review
@@ -302,30 +333,34 @@ const QuizAttempt = () => {
                         </div>
                       </div>
                       <p className="font-medium mb-4">{question.prompt}</p>
-                      
+
                       {question.type === "MCQ" && (
                         <div className="space-y-2">
                           {question.options.map((option, optIndex) => {
-                            const isSelected = studentAnswer === optIndex.toString();
-                            const isCorrectOption = question.correctAnswer === optIndex.toString();
+                            const isSelected = studentAnswer.trim() === optIndex.toString();
+                            const isCorrectOption = hasCorrectAnswer(question) &&
+                              question.correctAnswer!.trim() === optIndex.toString();
+                            const useColor = hasCorrectAnswer(question);
                             return (
                               <div
                                 key={optIndex}
                                 className={`p-3 rounded-lg border ${
-                                  isSelected
-                                    ? isCorrectOption
-                                      ? "border-green-500 bg-green-50"
-                                      : "border-red-500 bg-red-50"
-                                    : isCorrectOption
-                                    ? "border-green-500 bg-green-50"
-                                    : "border-border"
+                                  !useColor
+                                    ? "border-border"
+                                    : isSelected
+                                      ? isCorrectOption
+                                        ? "border-green-500 bg-green-50"
+                                        : "border-red-500 bg-red-50"
+                                      : isCorrectOption
+                                        ? "border-green-500 bg-green-50"
+                                        : "border-border"
                                 }`}
                               >
                                 <div className="flex items-center gap-2">
                                   {isSelected && (
                                     <span className="font-semibold">Your answer: </span>
                                   )}
-                                  {isCorrectOption && !isSelected && (
+                                  {useColor && isCorrectOption && !isSelected && (
                                     <span className="font-semibold text-green-700">Correct answer: </span>
                                   )}
                                   <span>{option}</span>
@@ -335,32 +370,37 @@ const QuizAttempt = () => {
                           })}
                         </div>
                       )}
-                      
+
                       {question.type === "MULTI_SELECT" && (
                         <div className="space-y-2">
                           {question.options.map((option, optIndex) => {
-                            const selectedIndices = studentAnswer.split(",").filter(Boolean);
+                            const selectedIndices = studentAnswer.split(",").map((s) => s.trim()).filter(Boolean);
                             const isSelected = selectedIndices.includes(optIndex.toString());
-                            const correctIndices = question.correctAnswer?.split(",").filter(Boolean) || [];
+                            const correctIndices = hasCorrectAnswer(question)
+                              ? (question.correctAnswer!.split(",").map((s) => s.trim()).filter(Boolean))
+                              : [];
                             const isCorrectOption = correctIndices.includes(optIndex.toString());
+                            const useColor = hasCorrectAnswer(question);
                             return (
                               <div
                                 key={optIndex}
                                 className={`p-3 rounded-lg border ${
-                                  isSelected
-                                    ? isCorrectOption
-                                      ? "border-green-500 bg-green-50"
-                                      : "border-red-500 bg-red-50"
-                                    : isCorrectOption
-                                    ? "border-green-500 bg-green-50"
-                                    : "border-border"
+                                  !useColor
+                                    ? "border-border"
+                                    : isSelected
+                                      ? isCorrectOption
+                                        ? "border-green-500 bg-green-50"
+                                        : "border-red-500 bg-red-50"
+                                      : isCorrectOption
+                                        ? "border-green-500 bg-green-50"
+                                        : "border-border"
                                 }`}
                               >
                                 <div className="flex items-center gap-2">
                                   {isSelected && (
                                     <span className="font-semibold">Your answer: </span>
                                   )}
-                                  {isCorrectOption && !isSelected && (
+                                  {useColor && isCorrectOption && !isSelected && (
                                     <span className="font-semibold text-green-700">Correct answer: </span>
                                   )}
                                   <span>{option}</span>
@@ -370,28 +410,32 @@ const QuizAttempt = () => {
                           })}
                         </div>
                       )}
-                      
+
                       {question.type === "TRUE_FALSE" && (
                         <div className="space-y-2">
                           {["true", "false"].map((value) => {
                             const isSelected = studentAnswer.toLowerCase().trim() === value;
-                            const isCorrect = question.correctAnswer?.toLowerCase().trim() === value;
+                            const isCorrect = hasCorrectAnswer(question) &&
+                              question.correctAnswer!.toLowerCase().trim() === value;
+                            const useColor = hasCorrectAnswer(question);
                             return (
                               <div
                                 key={value}
                                 className={`p-3 rounded-lg border ${
-                                  isSelected
-                                    ? isCorrect
-                                      ? "border-green-500 bg-green-50"
-                                      : "border-red-500 bg-red-50"
-                                    : isCorrect
-                                    ? "border-green-500 bg-green-50"
-                                    : "border-border"
+                                  !useColor
+                                    ? "border-border"
+                                    : isSelected
+                                      ? isCorrect
+                                        ? "border-green-500 bg-green-50"
+                                        : "border-red-500 bg-red-50"
+                                      : isCorrect
+                                        ? "border-green-500 bg-green-50"
+                                        : "border-border"
                                 }`}
                               >
                                 <span className="capitalize">{value}</span>
                                 {isSelected && <span className="ml-2 font-semibold">(Your answer)</span>}
-                                {isCorrect && !isSelected && (
+                                {useColor && isCorrect && !isSelected && (
                                   <span className="ml-2 font-semibold text-green-700">(Correct answer)</span>
                                 )}
                               </div>
@@ -399,14 +443,22 @@ const QuizAttempt = () => {
                           })}
                         </div>
                       )}
-                      
+
                       {question.type === "SHORT_ANSWER" && (
                         <div className="space-y-2">
-                          <div className="p-3 rounded-lg border border-border bg-muted">
+                          <div
+                            className={`p-3 rounded-lg border ${
+                              isCorrect === true
+                                ? "border-green-500 bg-green-50"
+                                : isCorrect === false
+                                  ? "border-red-500 bg-red-50"
+                                  : "border-border bg-muted"
+                            }`}
+                          >
                             <p className="font-semibold mb-1">Your answer:</p>
                             <p>{studentAnswer || "(No answer provided)"}</p>
                           </div>
-                          {question.correctAnswer && (
+                          {question.correctAnswer && isCorrect === false && (
                             <div className="p-3 rounded-lg border border-green-500 bg-green-50">
                               <p className="font-semibold text-green-700 mb-1">Expected answer:</p>
                               <p>{question.correctAnswer}</p>

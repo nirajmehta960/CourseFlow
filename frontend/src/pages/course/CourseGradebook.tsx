@@ -39,6 +39,7 @@ import { getErrorMessage } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 import { useAuth } from "@/contexts/AuthContext";
+import { getCourseById } from "@/lib/courses-api";
 import { cn } from "@/lib/utils";
 
 const CourseGradebook = () => {
@@ -55,8 +56,22 @@ const CourseGradebook = () => {
   const { isInstructor: isFaculty } = useCoursePermissions();
   const { user } = useAuth();
 
+  const [course, setCourse] = useState<any>(null); // Course info
+
   useEffect(() => {
     fetchGradebook();
+    if (courseId) {
+      getCourseById(courseId)
+        .then(setCourse)
+        .catch((error) => {
+          console.error("Failed to fetch course:", error);
+          toast({
+            title: "Error",
+            description: getErrorMessage(error),
+            variant: "destructive",
+          });
+        });
+    }
   }, [courseId]);
 
   const fetchGradebook = async () => {
@@ -117,11 +132,12 @@ const CourseGradebook = () => {
     if (!gradebook) return;
 
     // Build CSV content
-    const headers = ["Student ID", ...gradebook.items.map((item) => item.title), "Total Earned", "Total Possible", "Percent"];
+    const courseTitle = course ? `${course.title} (${course.code}) - ${course.term}` : `Course ${courseId}`;
+    const headers = ["Student Name", ...gradebook.items.map((item) => item.title), "Total Earned", "Total Possible", "Percent"];
     const rows: string[][] = [];
 
     gradebook.students.forEach((student) => {
-      const row: string[] = [student.studentId];
+      const row: string[] = [student.studentName || "Unknown Student"];
       gradebook.items.forEach((item) => {
         const grade = student.grades[item.itemId];
         if (grade && grade.score !== null) {
@@ -138,6 +154,7 @@ const CourseGradebook = () => {
 
     // Convert to CSV
     const csvContent = [
+      `"${courseTitle}"`,
       headers.join(","),
       ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
     ].join("\n");
@@ -147,7 +164,7 @@ const CourseGradebook = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `gradebook-${courseId}-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `${courseTitle.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_gradebook.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -246,8 +263,10 @@ const CourseGradebook = () => {
                   filteredStudents.map((student) => {
                     return (
                       <TableRow key={student.studentId}>
-                        <TableCell className="sticky left-0 z-10 bg-background font-medium">
-                          {student.studentId}
+                        <TableCell className="sticky left-0 z-10 bg-background font-medium p-0 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                          <div className="flex flex-col h-full justify-center px-4 py-4 min-w-[200px]">
+                            <span className="font-semibold">{student.studentName || "Unknown Student"}</span>
+                          </div>
                         </TableCell>
                         {gradebook.items.map((item) => {
                           const grade = student.grades[item.itemId];

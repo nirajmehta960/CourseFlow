@@ -31,7 +31,7 @@ const CourseNavbar = ({ isFaculty = false }: CourseNavbarProps) => {
   ];
 
   return (
-    <nav className="w-full md:w-52 lg:w-64 shrink-0 border-r border-border bg-card h-full">
+    <nav className="w-full md:w-52 lg:w-64 shrink-0 h-full">
       <div className="py-4">
         <ul className="space-y-0.5">
           {navItems.map((item) => (

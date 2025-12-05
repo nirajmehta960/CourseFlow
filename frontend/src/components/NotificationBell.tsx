@@ -7,7 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Bell, Check, CheckCheck } from "lucide-react";
+import { Bell, Check, CheckCheck, CheckCircle2, FileText, HelpCircle, MessageSquare, Mail } from "lucide-react";
 import {
   getNotifications,
   getUnreadCount,
@@ -49,7 +49,7 @@ const NotificationBell = () => {
       const count = await getUnreadCount();
       setUnreadCount(count);
     } catch (error) {
-      console.error("Failed to fetch unread count:", error);
+      console.error("Failed to fetch unread count:", getErrorMessage(error));
     }
   };
 
@@ -82,6 +82,11 @@ const NotificationBell = () => {
         setUnreadCount((prev) => Math.max(0, prev - 1));
       } catch (error) {
         console.error("Failed to mark notification as read:", error);
+        toast({
+          title: "Error",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
       }
     }
 
@@ -111,19 +116,20 @@ const NotificationBell = () => {
   };
 
   const getNotificationIcon = (type: Notification['type']) => {
+    const iconClass = "h-5 w-5 text-muted-foreground";
     switch (type) {
       case 'NEW_ASSIGNMENT':
-        return '📝';
+        return <FileText className={iconClass} />;
       case 'NEW_QUIZ':
-        return '❓';
+        return <HelpCircle className={iconClass} />;
       case 'GRADE_POSTED':
-        return '✅';
+        return <CheckCircle2 className={iconClass} />;
       case 'DISCUSSION_REPLY':
-        return '💬';
+        return <MessageSquare className={iconClass} />;
       case 'INBOX_MESSAGE':
-        return '📧';
+        return <Mail className={iconClass} />;
       default:
-        return '🔔';
+        return <Bell className={iconClass} />;
     }
   };
 
@@ -178,7 +184,7 @@ const NotificationBell = () => {
                   )}
                 >
                   <div className="flex items-start gap-3">
-                    <span className="text-xl shrink-0">
+                    <span className="shrink-0 flex items-center">
                       {getNotificationIcon(notification.type)}
                     </span>
                     <div className="flex-1 min-w-0">

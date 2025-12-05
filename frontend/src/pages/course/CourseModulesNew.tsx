@@ -350,6 +350,11 @@ const CourseModulesNew = () => {
       await reorderModules(courseId, { moduleOrder, itemOrders });
     } catch (error) {
       console.error("Failed to save reorder:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
       fetchModules(); // Revert on error
     }
   };
@@ -414,6 +419,11 @@ const CourseModulesNew = () => {
       await reorderModules(courseId, { moduleOrder, itemOrders });
     } catch (error) {
       console.error("Failed to save item reorder:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
       fetchModules(); // Revert on error
     }
   };

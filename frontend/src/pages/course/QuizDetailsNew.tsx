@@ -30,7 +30,12 @@ const QuizDetailsNew = () => {
       setLoading(true);
       const [quizData, attemptData] = await Promise.all([
         getQuiz(courseId, quizId),
-        !isFaculty ? getMyAttempt(quizId).catch(() => null) : Promise.resolve(null),
+        !isFaculty
+          ? getMyAttempt(courseId, quizId).catch((e) => {
+              console.error("Failed to load your attempt:", getErrorMessage(e));
+              return null;
+            })
+          : Promise.resolve(null),
       ]);
 
       setQuiz(quizData);

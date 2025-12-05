@@ -39,7 +39,7 @@ import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 import { useAuth } from "@/contexts/AuthContext";
 
 const AssignmentDetailNew = () => {
-  const { assignmentId } = useParams<{ assignmentId: string }>();
+  const { courseId, assignmentId } = useParams<{ courseId: string; assignmentId: string }>();
   const navigate = useNavigate();
   const { isInstructor } = useCoursePermissions();
   const { user } = useAuth();
@@ -49,30 +49,40 @@ const AssignmentDetailNew = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
-  
+
   // Submission form state
   const [bodyText, setBodyText] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [fileInputs, setFileInputs] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Grading state
   const [pointsAwarded, setPointsAwarded] = useState<number | undefined>();
   const [feedback, setFeedback] = useState("");
 
   useEffect(() => {
     fetchData();
-  }, [assignmentId]);
+  }, [courseId, assignmentId]);
 
   const fetchData = async () => {
-    if (!assignmentId) return;
+    if (!courseId || !assignmentId) return;
 
     try {
       setLoading(true);
       const [assignmentData, submissionData, submissionsData] = await Promise.all([
-        getAssignment(assignmentId),
-        !isInstructor ? getMySubmission(assignmentId).catch(() => null) : Promise.resolve(null),
-        isInstructor ? getSubmissions(assignmentId).catch(() => []) : Promise.resolve([]),
+        getAssignment(courseId, assignmentId),
+        !isInstructor
+          ? getMySubmission(courseId, assignmentId).catch((e) => {
+              console.error("Failed to load your submission:", getErrorMessage(e));
+              return null;
+            })
+          : Promise.resolve(null),
+        isInstructor
+          ? getSubmissions(courseId, assignmentId).catch((e) => {
+              console.error("Failed to load submissions:", getErrorMessage(e));
+              return [];
+            })
+          : Promise.resolve([]),
       ]);
 
       setAssignment(assignmentData);
@@ -82,7 +92,7 @@ const AssignmentDetailNew = () => {
         setUploadedFiles(submissionData.fileUrls || []);
       }
       setSubmissions(submissionsData);
-      
+
       // Select first ungraded submission for instructors
       if (isInstructor && submissionsData.length > 0) {
         const ungraded = submissionsData.find(s => !s.grade);
@@ -154,7 +164,7 @@ const AssignmentDetailNew = () => {
   };
 
   const handleSaveDraft = async () => {
-    if (!assignmentId) return;
+    if (!courseId || !assignmentId) return;
 
     try {
       setSubmitting(true);
@@ -163,7 +173,7 @@ const AssignmentDetailNew = () => {
         bodyText,
         fileUrls: uploadedFiles,
       };
-      await submitAssignment(assignmentId, request);
+      await submitAssignment(courseId, assignmentId, request);
       toast({
         title: "Success",
         description: "Draft saved",
@@ -182,7 +192,7 @@ const AssignmentDetailNew = () => {
   };
 
   const handleSubmit = async () => {
-    if (!assignmentId) return;
+    if (!courseId || !assignmentId) return;
 
     try {
       setSubmitting(true);
@@ -191,7 +201,7 @@ const AssignmentDetailNew = () => {
         bodyText,
         fileUrls: uploadedFiles,
       };
-      await submitAssignment(assignmentId, request);
+      await submitAssignment(courseId, assignmentId, request);
       toast({
         title: "Success",
         description: "Assignment submitted successfully",
@@ -210,11 +220,11 @@ const AssignmentDetailNew = () => {
   };
 
   const handleGrade = async () => {
-    if (!selectedSubmission) return;
+    if (!courseId || !assignmentId || !selectedSubmission) return;
 
     try {
       setSubmitting(true);
-      await gradeSubmission(selectedSubmission.id, {
+      await gradeSubmission(courseId, assignmentId, selectedSubmission.id, {
         pointsAwarded,
         feedback,
       });
@@ -255,7 +265,7 @@ const AssignmentDetailNew = () => {
     );
   }
 
-  const courseId = assignment.courseId;
+  // const courseId = assignment.courseId; // Removed duplicate declaration
   const dueDate = assignment.dueAt ? parseISO(assignment.dueAt) : null;
   const isPastDue = dueDate && !isAfter(dueDate, new Date());
   const isAvailable = !assignment.availableFrom || isAfter(new Date(), parseISO(assignment.availableFrom));
@@ -281,7 +291,18 @@ const AssignmentDetailNew = () => {
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>{assignment.title}</CardTitle>
+                <div className="flex items-start justify-between">
+                  <CardTitle>{assignment.title}</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => navigate(`/courses/${courseId}/assignments/${assignmentId}/edit`)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
+                </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
                   <span>{assignment.points} points</span>
                   {dueDate && (
@@ -366,11 +387,10 @@ const AssignmentDetailNew = () => {
                         setPointsAwarded(sub.grade?.pointsAwarded);
                         setFeedback(sub.grade?.feedback || "");
                       }}
-                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
-                        selectedSubmission?.id === sub.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:bg-muted"
-                      }`}
+                      className={`w-full text-left p-3 rounded-lg border transition-colors ${selectedSubmission?.id === sub.id
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted"
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{sub.studentId}</span>

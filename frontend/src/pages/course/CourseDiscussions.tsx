@@ -24,9 +24,9 @@ import {
   Discussion,
   DiscussionRequest,
 } from "@/lib/discussions-api";
-import { getErrorMessage } from "@/lib/api";
+import { getErrorMessage, extractFieldErrors } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 import { useAuth } from "@/contexts/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,6 +73,25 @@ const CourseDiscussions = () => {
   const handleCreate = async () => {
     if (!courseId) return;
 
+    // Client-side validation
+    if (!formData.title.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Title is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.bodyHtml.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Discussion content is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await createDiscussion(courseId, formData);
       toast({
@@ -84,9 +103,15 @@ const CourseDiscussions = () => {
       fetchDiscussions();
     } catch (error) {
       console.error("Failed to create discussion:", error);
+
+      const fieldErrors = extractFieldErrors(error);
+      const description = fieldErrors.size > 0
+        ? Array.from(fieldErrors.values()).join(". ")
+        : getErrorMessage(error);
+
       toast({
         title: "Error",
-        description: getErrorMessage(error),
+        description,
         variant: "destructive",
       });
     }
@@ -194,9 +219,9 @@ const CourseDiscussions = () => {
           action={
             isFaculty
               ? {
-                  label: "Create Discussion",
-                  onClick: () => setIsCreateDialogOpen(true),
-                }
+                label: "Create Discussion",
+                onClick: () => setIsCreateDialogOpen(true),
+              }
               : undefined
           }
         />
@@ -253,7 +278,7 @@ const CourseDiscussions = () => {
                   <span>•</span>
                   <span>
                     {discussion.createdAt
-                      ? format(parseISO(discussion.createdAt), "MMM d, yyyy 'at' h:mm a")
+                      ? formatDistanceToNow(parseISO(discussion.createdAt), { addSuffix: true })
                       : "Unknown date"}
                   </span>
                 </div>

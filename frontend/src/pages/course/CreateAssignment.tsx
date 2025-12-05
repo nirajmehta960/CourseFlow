@@ -30,7 +30,7 @@ const CreateAssignment = () => {
   const { courseId, assignmentId } = useParams<{ courseId: string; assignmentId?: string }>();
   const isEditMode = !!assignmentId;
   const [loading, setLoading] = useState(isEditMode);
-  
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [points, setPoints] = useState("100");
@@ -43,7 +43,7 @@ const CreateAssignment = () => {
   const [availableFromTime, setAvailableFromTime] = useState("00:00");
   const [availableUntil, setAvailableUntil] = useState<Date | undefined>(undefined);
   const [availableUntilTime, setAvailableUntilTime] = useState("23:59");
-  
+
   const [onlineEntryOptions, setOnlineEntryOptions] = useState({
     textEntry: false,
     websiteUrl: true,
@@ -60,16 +60,17 @@ const CreateAssignment = () => {
       try {
         setLoading(true);
         const assignment = await getAssignment(courseId, assignmentId);
-        
+
         // Pre-populate form fields
         setTitle(assignment.title || "");
         setDescription(assignment.description || "");
         setPoints(assignment.points?.toString() || "100");
-        
+
         // Parse and set due date
-        if (assignment.dueDate) {
+        // Parse and set due date
+        if (assignment.dueAt) {
           try {
-            const dueDateObj = parseISO(assignment.dueDate);
+            const dueDateObj = parseISO(assignment.dueAt);
             setDueDate(dueDateObj);
             // Extract time from ISO string
             const hours = dueDateObj.getHours().toString().padStart(2, "0");
@@ -77,6 +78,30 @@ const CreateAssignment = () => {
             setDueTime(`${hours}:${minutes}`);
           } catch (error) {
             console.error("Failed to parse due date:", error);
+          }
+        }
+
+        if (assignment.availableFrom) {
+          try {
+            const dateObj = parseISO(assignment.availableFrom);
+            setAvailableFrom(dateObj);
+            const hours = dateObj.getHours().toString().padStart(2, "0");
+            const minutes = dateObj.getMinutes().toString().padStart(2, "0");
+            setAvailableFromTime(`${hours}:${minutes}`);
+          } catch (error) {
+            console.error("Failed to parse available from date:", error);
+          }
+        }
+
+        if (assignment.availableUntil) {
+          try {
+            const dateObj = parseISO(assignment.availableUntil);
+            setAvailableUntil(dateObj);
+            const hours = dateObj.getHours().toString().padStart(2, "0");
+            const minutes = dateObj.getMinutes().toString().padStart(2, "0");
+            setAvailableUntilTime(`${hours}:${minutes}`);
+          } catch (error) {
+            console.error("Failed to parse available until date:", error);
           }
         }
       } catch (error) {
@@ -123,11 +148,29 @@ const CreateAssignment = () => {
         dueDateISO = dateTime.toISOString();
       }
 
+      let availableFromISO: string | undefined = undefined;
+      if (availableFrom) {
+        const [hours, minutes] = availableFromTime.split(":").map(Number);
+        const dateTime = new Date(availableFrom);
+        dateTime.setHours(hours, minutes, 0, 0);
+        availableFromISO = dateTime.toISOString();
+      }
+
+      let availableUntilISO: string | undefined = undefined;
+      if (availableUntil) {
+        const [hours, minutes] = availableUntilTime.split(":").map(Number);
+        const dateTime = new Date(availableUntil);
+        dateTime.setHours(hours, minutes, 0, 0);
+        availableUntilISO = dateTime.toISOString();
+      }
+
       const assignmentData = {
         title: title.trim(),
         description: description.trim() || undefined,
         points: parseFloat(points) || 0,
-        dueDate: dueDateISO,
+        dueAt: dueDateISO,
+        availableFrom: availableFromISO,
+        availableUntil: availableUntilISO,
         published: publish,
       };
 
@@ -193,7 +236,7 @@ const CreateAssignment = () => {
       <h1 className="text-xl sm:text-2xl font-semibold text-foreground mb-6 sm:mb-8">
         {isEditMode ? "Edit Assignment" : "Create Assignment"}
       </h1>
-      
+
       <div className="space-y-6">
         {/* Assignment Name */}
         <div className="space-y-2">

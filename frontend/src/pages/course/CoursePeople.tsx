@@ -313,7 +313,7 @@ const CoursePeople = () => {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
@@ -406,7 +406,7 @@ const CoursePeople = () => {
           </div>
 
           {/* People Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-4">
             {filteredPeople.map((person, index) => (
               <Card
                 key={person.userId}

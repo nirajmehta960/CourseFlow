@@ -2,12 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Video, 
-  Plus, 
-  Calendar, 
-  Clock, 
-  ExternalLink, 
+import {
+  Video,
+  Plus,
+  Calendar,
+  Clock,
+  ExternalLink,
   Users,
   Play,
   History,
@@ -208,15 +208,15 @@ const CourseZoom = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Recurring Meetings */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="xl:col-span-2 space-y-6">
           <div>
             <h3 className="font-semibold text-foreground mb-4">Recurring Meetings</h3>
             <div className="space-y-4">
               {meetings.map((meeting, index) => (
-                <Card 
-                  key={meeting.id} 
+                <Card
+                  key={meeting.id}
                   className={cn(
                     "hover:shadow-lg transition-all group",
                     meeting.isLive && "border-success/50 ring-1 ring-success/20"
@@ -281,8 +281,8 @@ const CourseZoom = () => {
                             <Copy className="h-3 w-3" />
                             Copy Link
                           </Button>
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             className={cn(
                               "gap-1",
                               meeting.isLive && "bg-success hover:bg-success/90"
@@ -312,8 +312,8 @@ const CourseZoom = () => {
             <Card>
               <CardContent className="p-0 divide-y divide-border">
                 {pastRecordings.map((recording) => (
-                  <div 
-                    key={recording.id} 
+                  <div
+                    key={recording.id}
                     className="flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors cursor-pointer group"
                   >
                     <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center shrink-0">

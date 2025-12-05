@@ -45,7 +45,7 @@ const Topbar = () => {
         <div className="flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-3">
-              <NotificationBell />
+              {/* <NotificationBell /> removed */}
               <div className="relative" ref={menuRef}>
                 <Button
                   variant="ghost"

@@ -20,12 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { 
-  Printer, 
-  FileDown, 
-  CheckCircle2, 
-  Clock, 
-  TrendingUp, 
+import {
+  Printer,
+  FileDown,
+  CheckCircle2,
+  Clock,
+  TrendingUp,
   Target,
   Award,
   AlertCircle,
@@ -37,6 +37,9 @@ import { getErrorMessage } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import Link from "react-router-dom";
+import CourseGradebook from "./CourseGradebook";
+import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 import EmptyState from "@/components/EmptyState";
 
 
@@ -58,7 +61,7 @@ const categoryWeights = [
   { category: "QUIZZES", weight: 10, color: "bg-warning" },
 ];
 
-const CourseGrades = () => {
+const StudentGrades = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const [arrangeBy, setArrangeBy] = useState("due-date");
   const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
@@ -68,26 +71,26 @@ const CourseGrades = () => {
   useEffect(() => {
     const fetchGradebook = async () => {
       if (!courseId) return;
-      
+
       try {
         setLoading(true);
         const gradebook = await getMyGradebook(courseId);
-        
+
         // Map API grade items to component format
         const mappedItems: GradeItem[] = gradebook.items.map((item: ApiGradeItem) => {
           const category = item.type === "ASSIGNMENT" ? "ASSIGNMENTS" : "QUIZZES";
           let status: "graded" | "submitted" | "pending" | "late" = "pending";
-          
+
           if (item.status === "GRADED") {
             status = "graded";
           } else if (item.status === "SUBMITTED") {
             status = "submitted";
           }
-          
+
           const percentage = item.score !== null && item.points !== null && item.points > 0
             ? Math.round((item.score / item.points) * 100 * 100) / 100
             : undefined;
-          
+
           return {
             id: item.itemId,
             name: item.title,
@@ -101,7 +104,7 @@ const CourseGrades = () => {
             feedback: item.feedback || null,
           };
         });
-        
+
         setGradeItems(mappedItems);
         setTotal(gradebook.total);
       } catch (error) {
@@ -182,7 +185,7 @@ const CourseGrades = () => {
   return (
     <div className="p-4 sm:p-6 md:p-8 w-full min-w-0 overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 sm:gap-0">
         <div>
           <h1 className="text-2xl font-display font-semibold text-foreground">Grades</h1>
           <p className="text-muted-foreground mt-1">Track your academic performance</p>
@@ -199,19 +202,21 @@ const CourseGrades = () => {
         </div>
       </div>
 
-      <div className="flex gap-8">
+      <div className="flex flex-col xl:flex-row gap-8">
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           {/* Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4 mb-8">
             <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
               <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground font-medium">Overall</p>
-                    <p className="text-3xl font-bold text-foreground mt-1">{overallPercentage}%</p>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground font-medium truncate">Overall</p>
+                    <p className="text-3xl font-bold text-foreground mt-1 truncate">
+                      {typeof overallPercentage === "number" ? overallPercentage.toFixed(2) : overallPercentage}%
+                    </p>
                   </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="h-12 w-12 shrink-0 rounded-full bg-primary/20 flex items-center justify-center">
                     <TrendingUp className="h-6 w-6 text-primary" />
                   </div>
                 </div>
@@ -221,12 +226,12 @@ const CourseGrades = () => {
 
             <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
               <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground font-medium">Letter Grade</p>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground font-medium truncate">Letter Grade</p>
                     <p className="text-3xl font-bold text-foreground mt-1">{getLetterGrade(overallPercentage)}</p>
                   </div>
-                  <div className="h-12 w-12 rounded-full bg-success/20 flex items-center justify-center">
+                  <div className="h-12 w-12 shrink-0 rounded-full bg-success/20 flex items-center justify-center">
                     <Award className="h-6 w-6 text-success" />
                   </div>
                 </div>
@@ -236,12 +241,12 @@ const CourseGrades = () => {
 
             <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
               <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground font-medium">Completed</p>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground font-medium truncate">Completed</p>
                     <p className="text-3xl font-bold text-foreground mt-1">{gradedItems.length}</p>
                   </div>
-                  <div className="h-12 w-12 rounded-full bg-warning/20 flex items-center justify-center">
+                  <div className="h-12 w-12 shrink-0 rounded-full bg-warning/20 flex items-center justify-center">
                     <CheckCircle2 className="h-6 w-6 text-warning" />
                   </div>
                 </div>
@@ -251,12 +256,12 @@ const CourseGrades = () => {
 
             <Card className="bg-gradient-to-br from-secondary/50 to-secondary/30 border-border">
               <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground font-medium">Points Earned</p>
-                    <p className="text-3xl font-bold text-foreground mt-1">{totalEarned}</p>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground font-medium truncate">Points Earned</p>
+                    <p className="text-3xl font-bold text-foreground mt-1 truncate">{totalEarned}</p>
                   </div>
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                  <div className="h-12 w-12 shrink-0 rounded-full bg-muted flex items-center justify-center">
                     <Target className="h-6 w-6 text-muted-foreground" />
                   </div>
                 </div>
@@ -266,7 +271,7 @@ const CourseGrades = () => {
           </div>
 
           {/* Filters */}
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-6">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Arrange by</span>
               <Select value={arrangeBy} onValueChange={setArrangeBy}>
@@ -286,145 +291,103 @@ const CourseGrades = () => {
           {/* Grades Table */}
           <Card>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/30 hover:bg-muted/30">
-                    <TableHead className="font-semibold text-foreground">Assignment</TableHead>
-                    <TableHead className="font-semibold text-foreground">Due</TableHead>
-                    <TableHead className="font-semibold text-foreground">Submitted</TableHead>
-                    <TableHead className="font-semibold text-foreground">Status</TableHead>
-                    <TableHead className="font-semibold text-foreground text-right">Score</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {gradeItems.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-64">
-                        <EmptyState
-                          icon={<Award className="h-12 w-12" />}
-                          title="No grades yet"
-                          description="You don't have any graded assignments or quizzes yet. Grades will appear here once they are posted."
-                        />
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="font-semibold text-foreground">Assignment</TableHead>
+                      <TableHead className="font-semibold text-foreground">Due</TableHead>
+                      <TableHead className="font-semibold text-foreground">Submitted</TableHead>
+                      <TableHead className="font-semibold text-foreground">Status</TableHead>
+                      <TableHead className="font-semibold text-foreground text-right">Score</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
-                  ) : (
-                    gradeItems.map((item) => (
-                    <TableRow key={item.id} className="hover:bg-muted/20 group cursor-pointer">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "h-2 w-2 rounded-full",
-                            getCategoryColor(item.category)
-                          )} />
-                          <div>
-                            <span className="text-foreground font-medium hover:text-primary transition-colors">
-                              {item.name}
-                            </span>
-                            <p className="text-xs text-muted-foreground">{item.category}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {item.dueDate}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {item.submittedDate || (
-                          <span className="text-warning flex items-center gap-1">
-                            <AlertCircle className="h-3.5 w-3.5" />
-                            Not submitted
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(item.status)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {item.score ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-foreground">
-                                {item.score}/{item.maxScore}
-                              </span>
-                              {item.percentage && (
-                                <span className={cn(
-                                  "text-xs font-medium px-2 py-0.5 rounded-full",
-                                  item.percentage >= 90 && "bg-success/10 text-success",
-                                  item.percentage >= 70 && item.percentage < 90 && "bg-warning/10 text-warning",
-                                  item.percentage < 70 && "bg-destructive/10 text-destructive"
-                                )}>
-                                  {item.percentage}%
+                  </TableHeader>
+                  <TableBody>
+                    {gradeItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-64">
+                          <EmptyState
+                            icon={<Award className="h-12 w-12" />}
+                            title="No grades yet"
+                            description="You don't have any graded assignments or quizzes yet. Grades will appear here once they are posted."
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      gradeItems.map((item) => (
+                        <TableRow key={item.id} className="hover:bg-muted/20 group cursor-pointer">
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "h-2 w-2 rounded-full",
+                                getCategoryColor(item.category)
+                              )} />
+                              <div>
+                                <span className="text-foreground font-medium hover:text-primary transition-colors">
+                                  {item.name}
                                 </span>
-                              )}
+                                <p className="text-xs text-muted-foreground">{item.category}</p>
+                              </div>
                             </div>
-                            {item.feedback && (
-                              <span className="text-xs text-muted-foreground text-right max-w-xs truncate" title={item.feedback}>
-                                {item.feedback}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {item.dueDate}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {item.submittedDate || (
+                              <span className="text-warning flex items-center gap-1">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                Not submitted
                               </span>
                             )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </TableCell>
-                    </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(item.status)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.score ? (
+                              <div className="flex flex-col items-end gap-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-foreground">
+                                    {item.score}/{item.maxScore}
+                                  </span>
+                                  {item.percentage && (
+                                    <span className={cn(
+                                      "text-xs font-medium px-2 py-0.5 rounded-full",
+                                      item.percentage >= 90 && "bg-success/10 text-success",
+                                      item.percentage >= 70 && item.percentage < 90 && "bg-warning/10 text-warning",
+                                      item.percentage < 70 && "bg-destructive/10 text-destructive"
+                                    )}>
+                                      {item.percentage}%
+                                    </span>
+                                  )}
+                                </div>
+                                {item.feedback && (
+                                  <span className="text-xs text-muted-foreground text-right max-w-xs truncate" title={item.feedback}>
+                                    {item.feedback}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Sidebar */}
-        <div className="w-72 shrink-0 space-y-6">
-          {/* Grade Breakdown */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Grade Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {categoryWeights.map((cat) => (
-                  <div key={cat.category}>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="text-foreground font-medium">{cat.category}</span>
-                      <span className="text-muted-foreground">{cat.weight}%</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className={cn("h-full rounded-full", cat.color)}
-                        style={{ width: `${cat.weight}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between text-sm font-semibold pt-4 mt-4 border-t border-border">
-                <span>Total</span>
-                <span>100%</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* What-if Calculator */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">What-if Calculator</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Calculate how future grades will affect your overall score
-              </p>
-              <Button variant="outline" className="w-full">
-                Open Calculator
-              </Button>
-            </CardContent>
-          </Card>
-
+        <div className="w-full xl:w-72 shrink-0 space-y-6">
           {/* Quick Stats */}
           <Card>
             <CardHeader className="pb-3">
@@ -449,10 +412,64 @@ const CourseGrades = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* What-if Calculator */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">What-if Calculator</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Calculate how future grades will affect your overall score
+              </p>
+              <Button variant="outline" className="w-full">
+                Open Calculator
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Grade Breakdown */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Grade Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {categoryWeights.map((cat) => (
+                  <div key={cat.category}>
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className="text-foreground font-medium">{cat.category}</span>
+                      <span className="text-muted-foreground">{cat.weight}%</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full", cat.color)}
+                        style={{ width: `${cat.weight}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between text-sm font-semibold pt-4 mt-4 border-t border-border">
+                <span>Total</span>
+                <span>100%</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
   );
+};
+
+const CourseGrades = () => {
+  const { isInstructor } = useCoursePermissions();
+
+  if (isInstructor) {
+    return <CourseGradebook />;
+  }
+
+  return <StudentGrades />;
 };
 
 export default CourseGrades;

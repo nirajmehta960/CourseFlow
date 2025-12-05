@@ -73,6 +73,11 @@ const Inbox = () => {
       setCourses(coursesMap);
     } catch (error) {
       console.error("Failed to fetch courses:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
     }
   };
 
@@ -162,6 +167,11 @@ const Inbox = () => {
       );
     } catch (error) {
       console.error("Failed to toggle star:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
     }
   };
 
