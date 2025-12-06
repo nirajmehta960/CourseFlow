@@ -10,4 +10,3 @@ public class CourseFlowApplication {
         SpringApplication.run(CourseFlowApplication.class, args);
     }
 }
-

@@ -37,4 +37,4 @@ const users = [
 
 // Write users.js as JSON
 fs.writeFileSync('users.js', JSON.stringify(users, null, 2));
-console.log('✅ Created users.js with valid JSON');
+console.log('Created users.js with valid JSON');

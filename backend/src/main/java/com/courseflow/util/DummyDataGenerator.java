@@ -256,11 +256,13 @@ public class DummyDataGenerator {
                 modules.add(module);
             }
             
+            Instant cmNow = Instant.now().minus(5, ChronoUnit.DAYS);
             CourseModule courseModule = CourseModule.builder()
                     .id(UUID.randomUUID().toString())
                     .courseId(course.getId())
                     .modules(modules)
-                    .updatedAt(Instant.now().minus(5, ChronoUnit.DAYS))
+                    .createdAt(cmNow)
+                    .updatedAt(cmNow)
                     .build();
             
             courseModules.add(courseModule);
@@ -319,13 +321,15 @@ public class DummyDataGenerator {
         int courseIndex = 0;
         for (User teacher : teachers) {
             for (int i = 0; i < 2; i++) {
+                Instant enTs = Instant.now().minus(20, ChronoUnit.DAYS);
                 Enrollment enrollment = Enrollment.builder()
                         .id(UUID.randomUUID().toString())
                         .courseId(courses.get(courseIndex).getId())
                         .userId(teacher.getId())
                         .courseRole(Enrollment.CourseRole.INSTRUCTOR)
                         .status(Enrollment.EnrollmentStatus.ACTIVE)
-                        .createdAt(Instant.now().minus(20, ChronoUnit.DAYS))
+                        .createdAt(enTs)
+                        .updatedAt(enTs)
                         .build();
                 
                 enrollments.add(enrollment);
@@ -337,13 +341,15 @@ public class DummyDataGenerator {
         courseIndex = 0;
         for (User ta : tas) {
             if (courseIndex < courses.size()) {
+                Instant enTs = Instant.now().minus(18, ChronoUnit.DAYS);
                 Enrollment enrollment = Enrollment.builder()
                         .id(UUID.randomUUID().toString())
                         .courseId(courses.get(courseIndex).getId())
                         .userId(ta.getId())
                         .courseRole(Enrollment.CourseRole.TA)
                         .status(Enrollment.EnrollmentStatus.ACTIVE)
-                        .createdAt(Instant.now().minus(18, ChronoUnit.DAYS))
+                        .createdAt(enTs)
+                        .updatedAt(enTs)
                         .build();
                 
                 enrollments.add(enrollment);
@@ -364,13 +370,15 @@ public class DummyDataGenerator {
                 
                 enrolledCourseIndices.add(courseIdx);
                 
+                Instant enTs = Instant.now().minus(15, ChronoUnit.DAYS);
                 Enrollment enrollment = Enrollment.builder()
                         .id(UUID.randomUUID().toString())
                         .courseId(courses.get(courseIdx).getId())
                         .userId(student.getId())
                         .courseRole(Enrollment.CourseRole.STUDENT)
                         .status(Enrollment.EnrollmentStatus.ACTIVE)
-                        .createdAt(Instant.now().minus(15, ChronoUnit.DAYS))
+                        .createdAt(enTs)
+                        .updatedAt(enTs)
                         .build();
                 
                 enrollments.add(enrollment);
@@ -479,6 +487,7 @@ public class DummyDataGenerator {
             }
             
             System.out.println("    ],");
+            System.out.println("    createdAt: ISODate(\"" + courseModule.getCreatedAt() + "\"),");
             System.out.println("    updatedAt: ISODate(\"" + courseModule.getUpdatedAt() + "\")");
             System.out.println("  }");
             System.out.println(");");
@@ -525,7 +534,8 @@ public class DummyDataGenerator {
             System.out.println("    userId: \"" + enrollment.getUserId() + "\",");
             System.out.println("    courseRole: \"" + enrollment.getCourseRole().name() + "\",");
             System.out.println("    status: \"" + enrollment.getStatus().name() + "\",");
-            System.out.println("    createdAt: ISODate(\"" + enrollment.getCreatedAt() + "\")");
+            System.out.println("    createdAt: ISODate(\"" + enrollment.getCreatedAt() + "\"),");
+            System.out.println("    updatedAt: ISODate(\"" + enrollment.getUpdatedAt() + "\")");
             System.out.println("  }");
             System.out.println(");");
             System.out.println();
