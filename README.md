@@ -41,14 +41,51 @@ cd backend
 mvn spring-boot:run  # Or use: ./start.sh
 ```
 
+## 🌐 Server Configuration
+
+### Backend Server
+
+- **Default Port**: `4000`
+- **Context Path**: `/api`
+- **Base URL**: `http://localhost:4000/api`
+- **API Documentation**: `http://localhost:4000/api/swagger-ui.html`
+- **Health Check**: `http://localhost:4000/api/health` (if implemented)
+
+### Changing the Server Port
+
+You can change the server port in two ways:
+
+1. **Environment Variable** (Recommended):
+
+   ```bash
+   export SERVER_PORT=8080
+   mvn spring-boot:run
+   ```
+
+2. **Configuration File**:
+   Edit `backend/src/main/resources/application.yml`:
+   ```yaml
+   server:
+     port: 8080 # Change from 4000 to your desired port
+   ```
+
+### Frontend Development Server
+
+- **Default Port**: `5173` (Vite default)
+- **URL**: `http://localhost:5173`
+
 ## 🔧 Environment Variables
 
 ### Frontend
+
 Copy `frontend/.env.example` to `frontend/.env` and set:
+
 - `VITE_API_BASE_URL` - Backend API URL (default: http://localhost:4000/api)
 
 ### Backend
+
 Copy `backend/.env.example` to `backend/.env` and set:
+
 - `MONGODB_URI` - MongoDB connection string (required for production)
 
 All other variables have defaults in `backend/src/main/resources/application.yml`.
@@ -65,6 +102,7 @@ Most platforms allow you to specify the root directory for deployment, making it
 ## 🛠️ Technology Stack
 
 ### Frontend
+
 - React 18 + TypeScript
 - Vite
 - Tailwind CSS
@@ -72,6 +110,7 @@ Most platforms allow you to specify the root directory for deployment, making it
 - TanStack Query
 
 ### Backend
+
 - Spring Boot 3.2.0
 - Java 17/21
 - MongoDB

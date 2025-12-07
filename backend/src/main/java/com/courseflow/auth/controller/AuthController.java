@@ -17,7 +17,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Controller for authentication endpoints.
+ * REST endpoints for user authentication.
+ * 
+ * Handles:
+ * - POST /api/auth/signup - Register new user
+ * - POST /api/auth/login - Sign in (returns access token, sets refresh token cookie)
+ * - POST /api/auth/refresh - Get new access token using refresh token
+ * - POST /api/auth/logout - Clear refresh token cookie
+ * - GET /api/auth/me - Get current authenticated user
  */
 @RestController
 @RequestMapping("/auth")

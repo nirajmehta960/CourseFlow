@@ -24,7 +24,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
- * Service for handling authentication operations.
+ * Handles user authentication: signup, signin, token refresh, and logout.
+ * Uses JWT tokens (access + refresh) with refresh token stored in httpOnly cookie for security.
  */
 @Slf4j
 @Service
@@ -37,21 +38,25 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     
     /**
-     * Register a new user.
+     * POST /api/auth/signup - Register a new user account
      * 
-     * @param request Sign up request
-     * @param response HTTP response to set refresh token cookie
-     * @return Auth response with access token and user info
+     * Flow:
+     * 1. Check if email already exists (prevent duplicates)
+     * 2. Hash password before storing (BCrypt)
+     * 3. Create user with default STUDENT role if not specified
+     * 4. Generate access token (short-lived) and refresh token (long-lived)
+     * 5. Set refresh token in httpOnly cookie (prevents XSS attacks)
+     * 
+     * Note: createdAt/updatedAt are auto-set by MongoDB auditing (@CreatedDate, @LastModifiedDate)
      */
     public AuthResponse signUp(SignUpRequest request, HttpServletResponse response) {
         try {
-            // Check if user already exists
+            // Prevent duplicate email registrations
             if (userRepository.existsByEmail(request.getEmail())) {
                 throw new ApiException("EMAIL_ALREADY_EXISTS", "Email is already registered", 409);
             }
             
-            // Create new user
-            // Note: createdAt and updatedAt are automatically set by MongoDB auditing (@CreatedDate, @LastModifiedDate)
+            // Hash password with BCrypt before storing (never store plain passwords)
             User user = User.builder()
                     .name(request.getName())
                     .email(request.getEmail())
@@ -61,7 +66,9 @@ public class AuthService {
             
             user = userRepository.save(user);
             
-            // Generate tokens
+            // Generate JWT tokens
+            // Access token: short-lived (15 min) - sent in response body
+            // Refresh token: long-lived (7 days) - stored in httpOnly cookie
             String accessToken = tokenProvider.generateAccessToken(
                     user.getId(), 
                     user.getEmail(), 
@@ -70,31 +77,36 @@ public class AuthService {
             
             String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getEmail());
             
-            // Set refresh token in httpOnly cookie
+            // Store refresh token in httpOnly cookie (not accessible via JavaScript)
+            // This prevents XSS attacks from stealing refresh tokens
             JwtAuthenticationFilter.setRefreshTokenCookie(response, refreshToken);
             
             log.info("User registered successfully: {}", user.getEmail());
             
             return buildAuthResponse(accessToken, user);
         } catch (ApiException e) {
-            // Re-throw API exceptions as-is
+            // Re-throw API exceptions as-is (they already have proper error codes)
             throw e;
         } catch (Exception e) {
             log.error("Error during signup for email: {}", request.getEmail(), e);
-            throw new ApiException("SIGNUP_ERROR", "Failed to create user account", 500);
+            throw new ApiException("SIGNUP_ERROR", "Failed to create user account: " + e.getMessage(), 500);
         }
     }
     
     /**
-     * Authenticate user and return tokens.
+     * POST /api/auth/signin - Authenticate user and return JWT tokens
      * 
-     * @param request Sign in request
-     * @param response HTTP response to set refresh token cookie
-     * @return Auth response with access token and user info
+     * Flow:
+     * 1. Spring Security validates email/password (checks against UserDetailsService)
+     * 2. If valid, generate new access + refresh tokens
+     * 3. Store refresh token in httpOnly cookie
+     * 
+     * Security: All authentication failures return same error message to prevent user enumeration
      */
     public AuthResponse signIn(SignInRequest request, HttpServletResponse response) {
         try {
-            // Authenticate user
+            // Spring Security handles password validation via UserDetailsService
+            // This will throw BadCredentialsException if password is wrong
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             request.getEmail(),
@@ -102,14 +114,16 @@ public class AuthService {
                     )
             );
             
+            // Set authentication in security context (for @PreAuthorize, etc.)
             SecurityContextHolder.getContext().setAuthentication(authentication);
             
+            // Get user details from authenticated principal
             SecurityUserDetails userDetails = (SecurityUserDetails) authentication.getPrincipal();
             String userId = userDetails.getId();
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ApiException("USER_NOT_FOUND", "User not found"));
             
-            // Generate tokens
+            // Generate new tokens on each signin (token rotation for security)
             String accessToken = tokenProvider.generateAccessToken(
                     user.getId(),
                     user.getEmail(),
@@ -118,7 +132,7 @@ public class AuthService {
             
             String refreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getEmail());
             
-            // Set refresh token in httpOnly cookie
+            // Store refresh token in httpOnly cookie
             JwtAuthenticationFilter.setRefreshTokenCookie(response, refreshToken);
             
             log.info("User signed in successfully: {}", user.getEmail());
@@ -126,16 +140,19 @@ public class AuthService {
             return buildAuthResponse(accessToken, user);
             
         } catch (BadCredentialsException e) {
+            // Wrong password - return generic error (don't reveal if email exists)
             throw new ApiException("INVALID_CREDENTIALS", "Invalid email or password", 401);
         } catch (InternalAuthenticationServiceException e) {
-            // Unwrap the underlying exception
+            // Unwrap to check if it's a "user not found" error
             Throwable cause = e.getCause();
             if (cause instanceof UsernameNotFoundException) {
+                // User doesn't exist - return same error as wrong password (security best practice)
                 throw new ApiException("INVALID_CREDENTIALS", "Invalid email or password", 401);
             }
             log.error("Authentication service error for email: {}", request.getEmail(), e);
             throw new ApiException("INVALID_CREDENTIALS", "Invalid email or password", 401);
         } catch (AuthenticationException e) {
+            // Any other auth exception - generic error
             throw new ApiException("INVALID_CREDENTIALS", "Invalid email or password", 401);
         } catch (ApiException e) {
             // Re-throw API exceptions as-is
@@ -147,54 +164,63 @@ public class AuthService {
     }
     
     /**
-     * Refresh access token using refresh token from cookie.
+     * POST /api/auth/refresh - Refresh access token using refresh token
      * 
-     * @param refreshToken Refresh token from cookie
-     * @param response HTTP response to set new refresh token cookie
-     * @return Auth response with new access token
+     * When access token expires (15 min), client uses refresh token to get new access token.
+     * We also rotate the refresh token (issue new one) for better security.
+     * 
+     * Flow:
+     * 1. Validate refresh token (check signature, expiration, type)
+     * 2. Extract user ID from token
+     * 3. Generate new access token + new refresh token
+     * 4. Return new access token, store new refresh token in cookie
      */
     public AuthResponse refresh(String refreshToken, HttpServletResponse response) {
+        // Validate token exists and is valid
         if (refreshToken == null || !tokenProvider.validateToken(refreshToken)) {
             throw new ApiException("INVALID_REFRESH_TOKEN", "Invalid or expired refresh token", 401);
         }
         
+        // Ensure this is actually a refresh token (not an access token)
         if (!tokenProvider.isRefreshToken(refreshToken)) {
             throw new ApiException("INVALID_TOKEN_TYPE", "Token is not a refresh token", 400);
         }
         
+        // Extract user ID from token
         String userId = tokenProvider.getUserIdFromToken(refreshToken);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException("USER_NOT_FOUND", "User not found"));
         
-        // Generate new tokens
+        // Generate new access token (short-lived)
         String accessToken = tokenProvider.generateAccessToken(
                 user.getId(),
                 user.getEmail(),
                 user.getRole().name()
         );
         
-        // Optionally rotate refresh token for better security
+        // Rotate refresh token (issue new one) - prevents token reuse if stolen
         String newRefreshToken = tokenProvider.generateRefreshToken(user.getId(), user.getEmail());
         
-        // Set new refresh token in httpOnly cookie
+        // Store new refresh token in httpOnly cookie
         JwtAuthenticationFilter.setRefreshTokenCookie(response, newRefreshToken);
         
         return buildAuthResponse(accessToken, user);
     }
     
     /**
-     * Logout user by clearing refresh token cookie.
+     * POST /api/auth/logout - Logout user
      * 
-     * @param response HTTP response to clear refresh token cookie
+     * Simply clears the refresh token cookie. Client should also discard access token.
      */
     public void logout(HttpServletResponse response) {
         JwtAuthenticationFilter.deleteRefreshTokenCookie(response);
     }
     
     /**
-     * Get current authenticated user.
+     * Get current authenticated user from Spring Security context.
      * 
-     * @return User entity
+     * Used by services that need to know who the current user is.
+     * Throws exception if user is not authenticated.
      */
     public User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -203,7 +229,8 @@ public class AuthService {
             throw new ApiException("UNAUTHORIZED", "User not authenticated", 401);
         }
         
-        // Handle anonymous authentication (principal is a String)
+        // Spring Security might set anonymous user as String "anonymousUser"
+        // We only accept authenticated users with SecurityUserDetails
         Object principal = authentication.getPrincipal();
         if (!(principal instanceof SecurityUserDetails)) {
             throw new ApiException("UNAUTHORIZED", "User not authenticated", 401);
@@ -216,7 +243,7 @@ public class AuthService {
     }
     
     /**
-     * Build authentication response.
+     * Build standardized authentication response with access token and user info.
      */
     private AuthResponse buildAuthResponse(String accessToken, User user) {
         return AuthResponse.builder()

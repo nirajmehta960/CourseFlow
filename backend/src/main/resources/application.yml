@@ -4,9 +4,8 @@ spring:
 
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/CourseFlow}
-      database: CourseFlow
-      # Explicitly set database name to ensure consistency
+      uri: ${MONGODB_URI:mongodb://localhost:27017}
+      database: ${MONGODB_DATABASE:CourseFlow}
 
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
@@ -56,9 +55,8 @@ spring:
 
   data:
     mongodb:
-      uri: ${MONGODB_URI:mongodb://localhost:27017/CourseFlow}
-      database: CourseFlow
-      # Explicitly set database name to ensure consistency
+      uri: ${MONGODB_URI:mongodb://localhost:27017}
+      database: ${MONGODB_DATABASE:CourseFlow}
 
 logging:
   level:
@@ -74,6 +72,7 @@ spring:
   data:
     mongodb:
       uri: ${MONGODB_URI}
+      database: ${MONGODB_DATABASE:CourseFlow}
 
 logging:
   level:
