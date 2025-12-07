@@ -17,7 +17,7 @@ const QuizDetails = () => {
 
   if (!quiz) {
     return (
-      <div className="p-6 max-w-4xl">
+      <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full min-w-0 overflow-x-hidden">
         <p className="text-muted-foreground">Quiz not found.</p>
       </div>
     );
@@ -49,7 +49,7 @@ const QuizDetails = () => {
   // Faculty View
   if (isFaculty) {
     return (
-      <div className="p-6 max-w-4xl">
+      <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full min-w-0 overflow-x-hidden">
         {/* Action Buttons */}
         <div className="flex justify-center gap-3 mb-8">
           <Button 

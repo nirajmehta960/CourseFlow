@@ -188,12 +188,12 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="w-full min-h-full bg-background overflow-x-hidden">
       {/* Header */}
       <div className="border-b border-border bg-card sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-foreground">Dashboard</h1>
-          <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Dashboard</h1>
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <Button variant="ghost" size="sm" className="text-muted-foreground">
               Today
             </Button>
@@ -217,7 +217,7 @@ const Dashboard = () => {
       </div>
 
       {/* New Activity Button */}
-      <div className="max-w-6xl mx-auto px-8 py-4 flex justify-end">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 py-4 flex justify-end">
         <Button variant="outline" size="sm" className="gap-2">
           NEW ACTIVITY
           <ChevronDown className="h-3 w-3" />
@@ -225,7 +225,7 @@ const Dashboard = () => {
       </div>
 
       {/* Activity Feed */}
-      <div className="max-w-6xl mx-auto px-8 pb-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 md:px-8 pb-12">
         <div className="space-y-0">
           {activityByDate.map((dayGroup) => (
             <div key={dayGroup.date}>
@@ -241,19 +241,19 @@ const Dashboard = () => {
                 {dayGroup.items.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-start gap-4 py-4 border-t border-border group"
+                    className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 py-4 border-t border-border group"
                   >
                     {/* Course Color Badge */}
                     <div className="flex items-start gap-2 shrink-0">
                       <div
-                        className="w-2 h-2 rounded-full mt-2"
+                        className="w-2 h-2 rounded-full mt-2 shrink-0"
                         style={{ backgroundColor: item.courseColor }}
                       />
                       <div
-                        className="w-28 h-16 rounded text-[10px] font-semibold text-white flex items-center justify-center text-center px-1 leading-tight shrink-0"
+                        className="w-24 sm:w-28 h-14 sm:h-16 rounded text-[10px] font-semibold text-white flex items-center justify-center text-center px-1 leading-tight shrink-0"
                         style={{ backgroundColor: item.courseColor }}
                       >
-                        <span>
+                        <span className="line-clamp-2">
                           {item.courseCode}
                           <br />
                           {item.courseName.split(" ").slice(0, 3).join(" ").toUpperCase()}
@@ -262,7 +262,7 @@ const Dashboard = () => {
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 w-full sm:w-auto">
                       {item.completed ? (
                         <button
                           onClick={() => toggleCompleted(item.id)}
@@ -312,7 +312,7 @@ const Dashboard = () => {
                     </div>
 
                     {/* Right Side */}
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0 w-full sm:w-auto">
                       {item.replies !== undefined && (
                         <Button variant="outline" size="sm" className="h-7 text-xs">
                           Replies

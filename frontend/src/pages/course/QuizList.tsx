@@ -75,7 +75,7 @@ const QuizList = () => {
   // Empty state
   if (quizzes.length === 0) {
     return (
-      <div className="p-6 max-w-4xl">
+      <div className="p-4 sm:p-6 md:p-8 max-w-4xl mx-auto w-full min-w-0 overflow-x-hidden">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-display text-xl font-semibold text-foreground">Quizzes</h2>

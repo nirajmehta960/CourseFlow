@@ -200,7 +200,7 @@ const CourseQuizzes = () => {
   const availableQuizzes = quizzes.filter((q) => q.status === "available").length;
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full min-w-0 overflow-x-hidden">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">

@@ -224,7 +224,7 @@ const CourseDiscussions = () => {
   const activeDiscussions = discussions.filter(d => d.isNew || d.lastReply?.includes("hour") || d.lastReply?.includes("min")).length;
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 md:p-8 w-full min-w-0 overflow-x-hidden">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">

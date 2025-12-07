@@ -76,18 +76,18 @@ const SignUp = () => {
   };
 
   return (
-    <div className="animate-fade-in space-y-8">
+    <div className="animate-fade-in space-y-6 sm:space-y-8 w-full max-w-md mx-auto px-4 sm:px-0">
       <div className="space-y-2">
-        <h1 className="font-display text-3xl font-bold text-foreground">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
           Create an account
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground">
           Join CourseFlow and start your learning journey today.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="grid grid-cols-2 gap-4">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="firstName">First Name</Label>
             <div className="relative">

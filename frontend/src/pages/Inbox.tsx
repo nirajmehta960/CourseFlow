@@ -120,18 +120,21 @@ const Inbox = () => {
   const unreadCount = messages.filter((m) => !m.read).length;
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="w-full min-h-full bg-background overflow-x-hidden">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-foreground">
-          Inbox
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          {unreadCount} unread messages
-        </p>
+      <div className="border-b border-border bg-card sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
+            Inbox
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            {unreadCount} unread messages
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8 w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Message List */}
         <div className="lg:col-span-1">
           {/* Search and filters */}
@@ -306,6 +309,7 @@ const Inbox = () => {
             </Card>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

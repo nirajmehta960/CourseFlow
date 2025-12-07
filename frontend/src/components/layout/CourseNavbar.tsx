@@ -31,7 +31,7 @@ const CourseNavbar = ({ isFaculty = false }: CourseNavbarProps) => {
   ];
 
   return (
-    <nav className="w-52 shrink-0 border-r border-border bg-card">
+    <nav className="w-full md:w-52 lg:w-64 shrink-0 border-r border-border bg-card h-full">
       <div className="py-4">
         <ul className="space-y-0.5">
           {navItems.map((item) => (
@@ -40,11 +40,14 @@ const CourseNavbar = ({ isFaculty = false }: CourseNavbarProps) => {
                 to={item.path}
                 end={item.path === basePath}
                 className={({ isActive }) =>
-                  cn("course-nav-link flex items-center gap-3", isActive && "active")
+                  cn(
+                    "course-nav-link flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2.5 md:py-2.5",
+                    isActive && "active"
+                  )
                 }
               >
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
+                <item.icon className="h-4 w-4 md:h-4 md:w-4 shrink-0" />
+                <span className="text-sm md:text-sm font-medium">{item.label}</span>
               </NavLink>
             </li>
           ))}

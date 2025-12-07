@@ -227,7 +227,7 @@ const CourseAssignments = () => {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-5xl">
+      <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full">
         <div className="flex items-center justify-center py-16">
           <p className="text-muted-foreground">Loading assignments...</p>
         </div>
@@ -236,13 +236,13 @@ const CourseAssignments = () => {
   }
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 md:p-8 max-w-5xl mx-auto w-full min-w-0 overflow-x-hidden">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-display font-semibold text-foreground">Assignments</h1>
-            <p className="text-muted-foreground mt-1">Track and submit your course assignments</p>
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0 mb-4 sm:mb-6">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl font-display font-semibold text-foreground">Assignments</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">Track and submit your course assignments</p>
           </div>
           {isFaculty && courseId && (
             <Link to={`/courses/${courseId}/assignments/new`}>

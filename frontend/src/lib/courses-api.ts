@@ -38,6 +38,19 @@ export const getMyCourses = async (): Promise<Course[]> => {
 };
 
 /**
+ * Get all published courses (for browsing)
+ */
+export const getAllPublishedCourses = async (): Promise<Course[]> => {
+  const response = await apiFetch<Course[]>('/courses/browse');
+  
+  if (!response.data) {
+    throw new Error('Failed to get all courses');
+  }
+
+  return response.data;
+};
+
+/**
  * Get a course by ID
  */
 export const getCourseById = async (courseId: string): Promise<Course> => {
@@ -106,5 +119,18 @@ export const getCoursePeople = async (courseId: string): Promise<CoursePeopleRes
   }
 
   return response.data;
+};
+
+/**
+ * Self-enroll in a course
+ */
+export const selfEnrollInCourse = async (courseId: string): Promise<void> => {
+  const response = await apiFetch(`/courses/${courseId}/self-enroll`, {
+    method: 'POST',
+  });
+
+  if (!response.success) {
+    throw new Error(response.message || 'Failed to enroll in course');
+  }
 };
 

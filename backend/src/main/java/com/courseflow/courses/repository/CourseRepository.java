@@ -29,5 +29,12 @@ public interface CourseRepository extends MongoRepository<Course, String> {
      * @return true if course exists, false otherwise
      */
     boolean existsByCodeAndTermAndSection(String code, String term, String section);
+    
+    /**
+     * Find all published courses.
+     * 
+     * @return List of published courses
+     */
+    List<Course> findByPublishedTrue();
 }
 

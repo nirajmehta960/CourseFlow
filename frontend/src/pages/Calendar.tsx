@@ -88,12 +88,12 @@ const Calendar = () => {
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="w-full min-h-full bg-background overflow-x-hidden">
       {/* Header */}
       <div className="border-b border-border bg-card sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-8 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <h1 className="text-2xl font-semibold text-foreground">Calendar</h1>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6 w-full sm:w-auto">
+            <h1 className="text-xl sm:text-2xl font-semibold text-foreground">Calendar</h1>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={prevMonth}>
                 <ChevronLeft className="h-4 w-4" />
@@ -105,11 +105,11 @@ const Calendar = () => {
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            <h2 className="text-lg font-medium text-foreground">
+            <h2 className="text-base sm:text-lg font-medium text-foreground">
               {months[month]} {year}
             </h2>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <div className="flex border border-border rounded-lg overflow-hidden">
               <Button
                 variant={view === "month" ? "secondary" : "ghost"}
@@ -141,10 +141,10 @@ const Calendar = () => {
       </div>
 
       {view === "month" ? (
-        <div className="max-w-7xl mx-auto px-8 py-6">
-          <div className="flex gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 w-full">
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
             {/* Calendar Grid */}
-            <div className="flex-1">
+            <div className="flex-1 min-w-0 w-full">
               <div className="bg-card border border-border rounded-lg overflow-hidden">
                 {/* Days of week header */}
                 <div className="grid grid-cols-7 border-b border-border bg-muted/30">
@@ -178,7 +178,7 @@ const Calendar = () => {
                         key={day}
                         onClick={() => setSelectedDate(date)}
                         className={cn(
-                          "h-28 p-2 text-left transition-colors hover:bg-muted/30 border-r border-b border-border",
+                          "h-20 sm:h-24 md:h-28 p-1 sm:p-2 text-left transition-colors hover:bg-muted/30 border-r border-b border-border",
                           dayOfWeek === 6 && "border-r-0",
                           isLastRow && "border-b-0",
                           isSelected(date) && "bg-primary/5 ring-1 ring-inset ring-primary"
@@ -186,28 +186,28 @@ const Calendar = () => {
                       >
                         <span
                           className={cn(
-                            "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium",
+                            "inline-flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full text-xs sm:text-sm font-medium",
                             isToday(date) && "bg-primary text-primary-foreground",
                             !isToday(date) && "text-foreground"
                           )}
                         >
                           {day}
                         </span>
-                        <div className="mt-1 space-y-0.5 overflow-hidden">
+                        <div className="mt-0.5 sm:mt-1 space-y-0.5 overflow-hidden">
                           {dayEvents.slice(0, 2).map((event) => (
                             <div
                               key={event.id}
-                              className="flex items-center gap-1 text-xs truncate"
+                              className="flex items-center gap-1 text-[10px] sm:text-xs truncate"
                             >
                               <div
-                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                                className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full shrink-0"
                                 style={{ backgroundColor: event.courseColor }}
                               />
                               <span className="truncate text-foreground">{event.title}</span>
                             </div>
                           ))}
                           {dayEvents.length > 2 && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-[10px] sm:text-xs text-muted-foreground">
                               +{dayEvents.length - 2} more
                             </span>
                           )}
@@ -220,7 +220,7 @@ const Calendar = () => {
             </div>
 
             {/* Sidebar - Selected date events */}
-            <div className="w-80 shrink-0">
+            <aside className="hidden lg:block w-full lg:w-80 xl:w-96 shrink-0 min-w-0">
               <div className="bg-card border border-border rounded-lg">
                 <div className="p-4 border-b border-border">
                   <h3 className="font-semibold text-foreground">
@@ -264,12 +264,12 @@ const Calendar = () => {
                   )}
                 </div>
               </div>
-            </div>
+            </aside>
           </div>
         </div>
       ) : (
         /* Agenda View */
-        <div className="max-w-4xl mx-auto px-8 py-6">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 w-full">
           <div className="bg-card border border-border rounded-lg divide-y divide-border">
             {monthEvents.length > 0 ? (
               monthEvents.map((event) => (

@@ -327,4 +327,51 @@
       transform: translateY(0);
     }
   }
+
+  /* Responsive utility classes - similar to momento-app */
+  .flex-center {
+    @apply flex justify-center items-center;
+  }
+
+  .flex-between {
+    @apply flex justify-between items-center;
+  }
+
+  .flex-start {
+    @apply flex justify-start items-center;
+  }
+
+  /* Common container with responsive padding - prevents overlapping */
+  .common-container {
+    @apply flex flex-col flex-1 items-center gap-6 sm:gap-10 overflow-y-auto overflow-x-hidden py-6 sm:py-10 px-4 sm:px-5 md:px-8 lg:p-14;
+  }
+
+  /* Page container - ensures content doesn't overflow */
+  .page-container {
+    @apply w-full max-w-full min-w-0 px-4 sm:px-6 md:px-8 lg:px-10 py-6 sm:py-8 md:py-10;
+  }
+
+  /* Content wrapper - prevents horizontal overflow */
+  .content-wrapper {
+    @apply w-full max-w-full min-w-0 overflow-x-hidden;
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
 }

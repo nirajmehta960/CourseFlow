@@ -147,106 +147,106 @@ const CourseHome = () => {
   }
 
   return (
-    <div className="flex min-h-full bg-background">
+    <div className="flex flex-col lg:flex-row min-h-full bg-background w-full overflow-x-hidden">
       {/* Main Content */}
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-4 sm:p-6 md:p-8 min-w-0 w-full">
         {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-display font-semibold text-foreground mb-2">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-xl sm:text-2xl font-display font-semibold text-foreground mb-2">
             Welcome back to your course
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Continue where you left off and track your progress
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
           <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-            <CardContent className="p-5">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">Progress</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">{progressPercent}%</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">Progress</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{progressPercent}%</p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-primary" />
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
               </div>
-              <Progress value={progressPercent} className="h-1.5 mt-4" />
+              <Progress value={progressPercent} className="h-1.5 mt-3 sm:mt-4" />
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
-            <CardContent className="p-5">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">Completed</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">{completedItems}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">Completed</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{completedItems}</p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-success/20 flex items-center justify-center">
-                  <CheckCircle2 className="h-6 w-6 text-success" />
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-success" />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-4">of {totalItems} total items</p>
+              <p className="text-xs text-muted-foreground mt-3 sm:mt-4">of {totalItems} total items</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
-            <CardContent className="p-5">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">Due Soon</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">3</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">Due Soon</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">3</p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-warning/20 flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-warning" />
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-warning/20 flex items-center justify-center shrink-0">
+                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-warning" />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-4">assignments this week</p>
+              <p className="text-xs text-muted-foreground mt-3 sm:mt-4">assignments this week</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-secondary/50 to-secondary/30 border-border">
-            <CardContent className="p-5">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">Modules</p>
-                  <p className="text-3xl font-bold text-foreground mt-1">{modules.length}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground font-medium">Modules</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground mt-1">{modules.length}</p>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                  <BookOpen className="h-6 w-6 text-muted-foreground" />
+                <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-4">{modules.filter(m => m.published).length} published</p>
+              <p className="text-xs text-muted-foreground mt-3 sm:mt-4">{modules.filter(m => m.published).length} published</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Continue Learning Section */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Continue Learning</h2>
-            <Button variant="ghost" size="sm" className="text-primary">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-4">
+            <h2 className="text-base sm:text-lg font-semibold text-foreground">Continue Learning</h2>
+            <Button variant="ghost" size="sm" className="text-primary shrink-0">
               View all modules
               <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
           
           <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-6">
-                <div className="h-16 w-16 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Play className="h-8 w-8 text-primary" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
+                <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Play className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                 </div>
-                <div className="flex-1">
-                  <Badge variant="outline" className="mb-2 text-primary border-primary/30">
+                <div className="flex-1 min-w-0 w-full sm:w-auto">
+                  <Badge variant="outline" className="mb-2 text-primary border-primary/30 text-xs">
                     Module 1
                   </Badge>
-                  <h3 className="font-semibold text-foreground text-lg">Combustion Instability</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Continue from where you left off • 12 min remaining</p>
+                  <h3 className="font-semibold text-foreground text-base sm:text-lg line-clamp-2">Combustion Instability</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">Continue from where you left off • 12 min remaining</p>
                 </div>
-                <Button className="shrink-0">
+                <Button className="shrink-0 w-full sm:w-auto mt-2 sm:mt-0">
                   <Play className="h-4 w-4 mr-2" />
                   Resume
                 </Button>
@@ -257,13 +257,13 @@ const CourseHome = () => {
 
         {/* Modules List */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Course Modules</h2>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setExpandedModules([])}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-4">
+            <h2 className="text-base sm:text-lg font-semibold text-foreground">Course Modules</h2>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button variant="outline" size="sm" onClick={() => setExpandedModules([])} className="flex-1 sm:flex-initial">
                 Collapse All
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setExpandedModules(modules.map(m => m.moduleId))}>
+              <Button variant="outline" size="sm" onClick={() => setExpandedModules(modules.map(m => m.moduleId))} className="flex-1 sm:flex-initial">
                 Expand All
               </Button>
             </div>
@@ -294,28 +294,28 @@ const CourseHome = () => {
                   {/* Module Header */}
                   <button
                     onClick={() => toggleModule(module.moduleId)}
-                    className="w-full flex items-center justify-between p-5 hover:bg-muted/30 transition-colors text-left"
+                    className="w-full flex items-center justify-between p-4 sm:p-5 hover:bg-muted/30 transition-colors text-left gap-2 sm:gap-4"
                   >
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
                       <div className={cn(
-                        "h-10 w-10 rounded-lg flex items-center justify-center transition-colors",
+                        "h-8 w-8 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center transition-colors shrink-0",
                         moduleProgress === 100 ? "bg-success/20" : "bg-primary/10"
                       )}>
                         {moduleProgress === 100 ? (
-                          <CheckCircle2 className="h-5 w-5 text-success" />
+                          <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-success" />
                         ) : isExpanded ? (
-                          <ChevronDown className="h-5 w-5 text-primary" />
+                          <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                         ) : (
-                          <ChevronRight className="h-5 w-5 text-primary" />
+                          <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                         )}
                       </div>
-                      <div>
-                        <h3 className="font-medium text-foreground">{module.title}</h3>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-muted-foreground">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-medium text-foreground text-sm sm:text-base truncate">{module.title}</h3>
+                        <div className="flex items-center gap-2 sm:gap-3 mt-1">
+                          <span className="text-xs text-muted-foreground shrink-0">
                             {moduleTotal} items
                           </span>
-                          <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="w-16 sm:w-24 h-1.5 bg-muted rounded-full overflow-hidden flex-1 min-w-0">
                             <div 
                               className={cn(
                                 "h-full rounded-full transition-all",
@@ -330,7 +330,7 @@ const CourseHome = () => {
                     <Badge
                       variant={hasPublishedItems ? "default" : "secondary"}
                       className={cn(
-                        "text-xs",
+                        "text-xs shrink-0",
                         hasPublishedItems && "bg-success/10 text-success border-success/20 hover:bg-success/20"
                       )}
                     >
@@ -408,8 +408,8 @@ const CourseHome = () => {
         </div>
       </div>
 
-      {/* Right Sidebar */}
-      <div className="w-80 border-l border-border p-6 bg-muted/20">
+      {/* Right Sidebar - hidden on mobile/tablet, shown on large screens */}
+      <aside className="hidden lg:block w-full lg:w-80 xl:w-96 shrink-0 border-t lg:border-t-0 lg:border-l border-border p-4 sm:p-6 bg-muted/20 min-w-0">
         {/* Upcoming Deadlines */}
         <Card className="mb-6">
           <CardHeader className="pb-3">
@@ -492,7 +492,7 @@ const CourseHome = () => {
             </CardContent>
           </Card>
         )}
-      </div>
+      </aside>
     </div>
   );
 };

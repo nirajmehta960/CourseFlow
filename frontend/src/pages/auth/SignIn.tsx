@@ -51,12 +51,12 @@ const SignIn = () => {
   };
 
   return (
-    <div className="animate-fade-in space-y-8">
+    <div className="animate-fade-in space-y-6 sm:space-y-8 w-full max-w-md mx-auto px-4 sm:px-0">
       <div className="space-y-2">
-        <h1 className="font-display text-3xl font-bold text-foreground">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
           Sign in
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-sm sm:text-base text-muted-foreground">
           Welcome back! Enter your credentials to access your account.
         </p>
       </div>

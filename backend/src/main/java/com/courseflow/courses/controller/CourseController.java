@@ -27,6 +27,13 @@ public class CourseController {
     
     private final CourseService courseService;
     
+    @GetMapping("/browse")
+    @Operation(summary = "Get all published courses", description = "Get all published courses available for enrollment")
+    public ResponseEntity<ApiResponse<List<CourseResponse>>> getAllPublishedCourses() {
+        List<CourseResponse> courses = courseService.getAllPublishedCourses();
+        return ResponseEntity.ok(ApiResponse.success(courses));
+    }
+    
     @GetMapping
     @Operation(summary = "Get my courses", description = "Get all courses where the current user is enrolled")
     public ResponseEntity<ApiResponse<List<CourseResponse>>> getMyCourses() {
@@ -74,6 +81,14 @@ public class CourseController {
             @Valid @RequestBody EnrollStudentRequest request) {
         Enrollment enrollment = courseService.enrollStudent(courseId, request.getUserId());
         return ResponseEntity.ok(ApiResponse.success(enrollment, "Student enrolled successfully"));
+    }
+    
+    @PostMapping("/{courseId}/self-enroll")
+    @Operation(summary = "Self-enroll in a course", description = "Enroll the current user in a published course")
+    public ResponseEntity<ApiResponse<Enrollment>> selfEnroll(
+            @PathVariable String courseId) {
+        Enrollment enrollment = courseService.selfEnroll(courseId);
+        return ResponseEntity.ok(ApiResponse.success(enrollment, "Successfully enrolled in course"));
     }
 }
 

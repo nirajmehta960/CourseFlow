@@ -180,7 +180,7 @@ const CreateAssignment = () => {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-3xl">
+      <div className="p-4 sm:p-6 md:p-8 max-w-3xl mx-auto w-full">
         <div className="flex items-center justify-center py-16">
           <p className="text-muted-foreground">Loading assignment...</p>
         </div>
@@ -189,8 +189,8 @@ const CreateAssignment = () => {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
-      <h1 className="text-2xl font-semibold text-foreground mb-8">
+    <div className="p-4 sm:p-6 md:p-8 max-w-3xl mx-auto w-full min-w-0 overflow-x-hidden">
+      <h1 className="text-xl sm:text-2xl font-semibold text-foreground mb-6 sm:mb-8">
         {isEditMode ? "Edit Assignment" : "Create Assignment"}
       </h1>
       

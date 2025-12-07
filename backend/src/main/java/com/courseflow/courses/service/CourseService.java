@@ -55,13 +55,13 @@ public class CourseService {
                     "A course with this code, term, and section already exists", 409);
         }
         
-        // Create course
+        // Create course - published by default so students can see and enroll
         Course course = Course.builder()
                 .title(request.getTitle())
                 .code(request.getCode())
                 .term(request.getTerm())
                 .section(request.getSection())
-                .published(request.getPublished() != null ? request.getPublished() : false)
+                .published(request.getPublished() != null ? request.getPublished() : true)
                 .instructorIds(new ArrayList<>())
                 .build();
         
@@ -79,6 +79,18 @@ public class CourseService {
         );
         
         return mapToResponse(course);
+    }
+    
+    /**
+     * Get all published courses (for browsing by all users).
+     * 
+     * @return List of all published courses
+     */
+    public List<CourseResponse> getAllPublishedCourses() {
+        List<Course> courses = courseRepository.findByPublishedTrue();
+        return courses.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
     }
     
     /**
@@ -233,6 +245,34 @@ public class CourseService {
         
         // Enroll the student
         return enrollmentService.enrollUser(courseId, userId, Enrollment.CourseRole.STUDENT);
+    }
+    
+    /**
+     * Self-enroll the current user in a course (for students).
+     * 
+     * @param courseId Course ID
+     * @return Enrollment information
+     */
+    public Enrollment selfEnroll(String courseId) {
+        User currentUser = authService.getCurrentUser();
+        
+        // Verify course exists and is published
+        Course course = courseRepository.findById(courseId)
+                .orElseThrow(() -> new ApiException("COURSE_NOT_FOUND", "Course not found", 404));
+        
+        if (!course.getPublished()) {
+            throw new ApiException("COURSE_NOT_PUBLISHED", 
+                    "Course is not published and cannot be enrolled in", 403);
+        }
+        
+        // Check if already enrolled
+        if (enrollmentService.checkEnrollment(courseId, currentUser.getId())) {
+            throw new ApiException("ALREADY_ENROLLED", 
+                    "You are already enrolled in this course", 409);
+        }
+        
+        // Enroll the user as a student
+        return enrollmentService.enrollUser(courseId, currentUser.getId(), Enrollment.CourseRole.STUDENT);
     }
     
     /**

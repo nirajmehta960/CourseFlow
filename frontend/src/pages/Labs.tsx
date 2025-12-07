@@ -91,19 +91,22 @@ const Labs = () => {
   };
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="w-full min-h-full bg-background overflow-x-hidden">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-foreground">
-          Virtual Labs
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Access virtual laboratory environments for hands-on learning.
-        </p>
+      <div className="border-b border-border bg-card sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
+            Virtual Labs
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            Access virtual laboratory environments for hands-on learning.
+          </p>
+        </div>
       </div>
 
       {/* Lab Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8 w-full">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {labs.map((lab, index) => {
           const Icon = lab.icon;
           return (
@@ -145,10 +148,10 @@ const Labs = () => {
             </Card>
           );
         })}
-      </div>
+        </div>
 
-      {/* Request Lab */}
-      <Card className="mt-8">
+        {/* Request Lab */}
+        <Card className="mt-6 sm:mt-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />
@@ -161,7 +164,8 @@ const Labs = () => {
           </p>
           <Button variant="outline">Submit Request</Button>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };

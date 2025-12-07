@@ -50,42 +50,42 @@ const Account = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="w-full min-h-full bg-background overflow-x-hidden">
       {/* Header */}
       <div className="border-b border-border bg-card">
-        <div className="max-w-5xl mx-auto px-8 py-8">
-          <div className="flex items-start gap-6">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8">
+          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
             {/* Avatar */}
-            <div className="relative group">
-              <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+            <div className="relative group shrink-0">
+              <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-background shadow-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                <AvatarFallback className="text-xl sm:text-2xl bg-primary text-primary-foreground">
                   JD
                 </AvatarFallback>
               </Avatar>
               <button className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera className="h-6 w-6 text-white" />
+                <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </button>
             </div>
 
             {/* User Info */}
-            <div className="flex-1">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h1 className="text-2xl font-semibold text-foreground">{user.name}</h1>
-                  <p className="text-muted-foreground mt-0.5">{user.email}</p>
-                  <div className="flex items-center gap-4 mt-3">
-                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <GraduationCap className="h-4 w-4" />
-                      {user.major} · {user.year}
+            <div className="flex-1 min-w-0 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-xl sm:text-2xl font-semibold text-foreground truncate">{user.name}</h1>
+                  <p className="text-sm sm:text-base text-muted-foreground mt-0.5 truncate">{user.email}</p>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-3">
+                    <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                      <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                      <span className="truncate">{user.major} · {user.year}</span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      {user.location}
+                    <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                      <MapPin className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                      <span className="truncate">{user.location}</span>
                     </span>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" className="shrink-0 w-full sm:w-auto">
                   Edit Profile
                 </Button>
               </div>
@@ -95,7 +95,7 @@ const Account = () => {
       </div>
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-8 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8 w-full">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-transparent border-b border-border rounded-none w-full justify-start h-auto p-0 gap-8 mb-8">
             <TabsTrigger
@@ -126,14 +126,14 @@ const Account = () => {
 
           {/* Profile Tab */}
           <TabsContent value="profile" className="mt-0">
-            <div className="grid grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
               {/* Main Form */}
-              <div className="col-span-2 space-y-8">
+              <div className="lg:col-span-2 space-y-6 sm:space-y-8">
                 {/* Personal Information */}
                 <div className="bg-card border border-border rounded-lg p-6">
                   <h2 className="text-lg font-semibold text-foreground mb-6">Personal Information</h2>
                   <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">First Name</Label>
                         <Input defaultValue="John" />
@@ -154,7 +154,7 @@ const Account = () => {
                       <Label className="text-sm font-medium">Email</Label>
                       <Input defaultValue={user.email} type="email" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Phone</Label>
                         <Input defaultValue={user.phone} />
@@ -171,7 +171,7 @@ const Account = () => {
                 <div className="bg-card border border-border rounded-lg p-6">
                   <h2 className="text-lg font-semibold text-foreground mb-6">Academic Information</h2>
                   <div className="space-y-5">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Student ID</Label>
                         <Input defaultValue={user.studentId} disabled className="bg-muted" />
@@ -181,7 +181,7 @@ const Account = () => {
                         <Input defaultValue={user.major} disabled className="bg-muted" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Year</Label>
                         <Input defaultValue={user.year} disabled className="bg-muted" />
@@ -200,7 +200,7 @@ const Account = () => {
               </div>
 
               {/* Sidebar */}
-              <div className="space-y-6">
+              <div className="space-y-6 lg:col-span-1">
                 {/* Links */}
                 <div className="bg-card border border-border rounded-lg p-6">
                   <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">

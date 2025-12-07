@@ -345,14 +345,14 @@ const CourseModules = () => {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
+      <div className="p-4 sm:p-6 md:p-8 flex items-center justify-center min-h-[400px] w-full">
         <p className="text-muted-foreground">Loading modules...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 md:p-8 w-full min-w-0 overflow-x-hidden">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">

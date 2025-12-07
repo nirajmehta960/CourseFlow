@@ -18,7 +18,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { getMyCourses, Course } from "@/lib/courses-api";
+import { getMyCourses, getAllPublishedCourses, selfEnrollInCourse, Course } from "@/lib/courses-api";
 import { getErrorMessage } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
@@ -59,21 +59,29 @@ const Courses = () => {
   const [courses, setCourses] = useState<CourseDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [enrollingCourseId, setEnrollingCourseId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
       try {
         setLoading(true);
-        const apiCourses = await getMyCourses();
+        // Fetch all published courses and enrolled courses in parallel
+        const [allCourses, enrolledCourses] = await Promise.all([
+          getAllPublishedCourses(),
+          getMyCourses()
+        ]);
         
-        // Map API courses to display format
-        const mappedCourses: CourseDisplay[] = apiCourses.map((course: Course) => ({
+        // Create a set of enrolled course IDs for quick lookup
+        const enrolledCourseIds = new Set(enrolledCourses.map((c: Course) => c.id));
+        
+        // Map all courses to display format, marking which ones are enrolled
+        const mappedCourses: CourseDisplay[] = allCourses.map((course: Course) => ({
           id: course.id,
           name: course.title,
           code: course.code,
           instructor: "Instructor", // TODO: Fetch instructor names from user IDs
           department: "", // Not available in API
-          enrolled: true, // getMyCourses returns only enrolled courses
+          enrolled: enrolledCourseIds.has(course.id),
           term: course.term,
           color: generateColor(course.id),
           favorite: false, // TODO: Implement favorites feature
@@ -96,6 +104,34 @@ const Courses = () => {
 
     fetchCourses();
   }, []);
+  
+  const handleEnroll = async (courseId: string) => {
+    try {
+      setEnrollingCourseId(courseId);
+      await selfEnrollInCourse(courseId);
+      
+      // Update the course to mark it as enrolled
+      setCourses(prevCourses =>
+        prevCourses.map(course =>
+          course.id === courseId ? { ...course, enrolled: true } : course
+        )
+      );
+      
+      toast({
+        title: "Success",
+        description: "Successfully enrolled in course",
+      });
+    } catch (error) {
+      console.error("Failed to enroll:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setEnrollingCourseId(null);
+    }
+  };
 
   const terms = [...new Set(courses.map((c) => c.term))];
 
@@ -135,10 +171,10 @@ const Courses = () => {
     const isFavorite = favorites.includes(course.id);
 
     return (
-      <div className="group h-full">
+      <div className="group h-full w-full min-w-0">
         <div
           className={cn(
-            "bg-card rounded-xl border border-border overflow-hidden transition-all duration-300 h-full flex flex-col",
+            "bg-card rounded-xl border border-border overflow-hidden transition-all duration-300 h-full flex flex-col w-full",
             isEnrolled && "hover:shadow-lg hover:border-primary/20 hover:-translate-y-1"
           )}
         >
@@ -196,10 +232,10 @@ const Courses = () => {
 
           {/* Card Body - Flex grow to fill remaining space */}
           <div className="p-4 flex flex-col flex-1">
-            <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-start justify-between gap-2 mb-2 min-w-0">
               <h3
                 className={cn(
-                  "font-semibold text-foreground text-sm leading-snug line-clamp-2 min-h-[2.5rem]",
+                  "font-semibold text-foreground text-sm leading-snug line-clamp-2 min-h-[2.5rem] flex-1 min-w-0",
                   isEnrolled && "group-hover:text-primary transition-colors"
                 )}
               >
@@ -210,7 +246,7 @@ const Courses = () => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 shrink-0 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                     onClick={(e) => e.preventDefault()}
                   >
                     <MoreVertical className="h-4 w-4 text-muted-foreground" />
@@ -240,8 +276,18 @@ const Courses = () => {
             {/* Spacer to push button to bottom */}
             <div className="mt-auto">
               {!isEnrolled && (
-                <Button variant="outline" size="sm" className="w-full text-xs">
-                  Request to Enroll
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full text-xs"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleEnroll(course.id);
+                  }}
+                  disabled={enrollingCourseId === course.id}
+                >
+                  {enrollingCourseId === course.id ? "Enrolling..." : "Enroll"}
                 </Button>
               )}
             </div>
@@ -252,21 +298,21 @@ const Courses = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="w-full min-h-full bg-background overflow-x-hidden">
       {/* Header */}
       <div className="border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground tracking-tight">My Courses</h1>
-              <p className="text-sm text-muted-foreground mt-1">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight truncate">My Courses</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Manage and explore your courses for {termFilter === "all" ? "all terms" : termFilter}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <div className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full">
-                <BookOpen className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium text-primary">
+                <BookOpen className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-xs sm:text-sm font-medium text-primary whitespace-nowrap">
                   {enrolledCourses.length} Enrolled
                 </span>
               </div>
@@ -275,27 +321,27 @@ const Courses = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 min-w-0">
         {loading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex items-center justify-center min-h-[400px] w-full">
             <p className="text-muted-foreground">Loading courses...</p>
           </div>
         ) : (
-          <>
+          <div className="w-full min-w-0">
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-col sm:flex-row gap-4 mb-8 w-full">
+          <div className="relative flex-1 min-w-0 max-w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground shrink-0 pointer-events-none" />
             <Input
               placeholder="Search courses, instructors..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-card border-border h-11"
+              className="pl-10 bg-card border-border h-11 w-full"
             />
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3 shrink-0">
             <Select value={termFilter} onValueChange={setTermFilter}>
-              <SelectTrigger className="w-40 bg-card h-11">
+              <SelectTrigger className="w-full sm:w-40 bg-card h-11 min-w-[120px]">
                 <SelectValue placeholder="Term" />
               </SelectTrigger>
               <SelectContent>
@@ -308,7 +354,7 @@ const Courses = () => {
               </SelectContent>
             </Select>
             <Select value={enrollmentFilter} onValueChange={setEnrollmentFilter}>
-              <SelectTrigger className="w-40 bg-card h-11">
+              <SelectTrigger className="w-full sm:w-40 bg-card h-11 min-w-[120px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -322,21 +368,27 @@ const Courses = () => {
 
         {/* Enrolled Courses */}
         {enrolledCourses.length > 0 && (
-          <div className="mb-12">
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2">
+          <div className="mb-12 w-full">
+            <div className="flex items-center gap-2 sm:gap-3 mb-5 w-full">
+              <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent min-w-0" />
+              <h2 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2 shrink-0 whitespace-nowrap">
                 Published Courses ({enrolledCourses.length})
               </h2>
-              <div className="h-px flex-1 bg-gradient-to-l from-border to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-l from-border to-transparent min-w-0" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 w-full">
               {enrolledCourses.map((course, index) => (
                 <Link
                   key={course.id}
                   to={`/courses/${course.id}`}
-                  className="block animate-fade-in"
+                  className="block w-full min-w-0 animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={(e) => {
+                    // Prevent navigation if clicking on enroll button
+                    if ((e.target as HTMLElement).closest('button')) {
+                      e.preventDefault();
+                    }
+                  }}
                 >
                   <CourseCard course={course} isEnrolled={true} />
                 </Link>
@@ -347,19 +399,19 @@ const Courses = () => {
 
         {/* Available Courses */}
         {availableCourses.length > 0 && (
-          <div>
-            <div className="flex items-center gap-3 mb-5">
-              <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2">
+          <div className="w-full">
+            <div className="flex items-center gap-2 sm:gap-3 mb-5 w-full">
+              <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent min-w-0" />
+              <h2 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider px-2 shrink-0 whitespace-nowrap">
                 Available Courses ({availableCourses.length})
               </h2>
-              <div className="h-px flex-1 bg-gradient-to-l from-border to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-l from-border to-transparent min-w-0" />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 w-full">
               {availableCourses.map((course, index) => (
                 <div
                   key={course.id}
-                  className="animate-fade-in"
+                  className="w-full min-w-0 animate-fade-in"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <CourseCard course={course} isEnrolled={false} />
@@ -369,20 +421,20 @@ const Courses = () => {
           </div>
         )}
 
-        {filteredCourses.length === 0 && (
-          <div className="text-center py-20">
+        {filteredCourses.length === 0 && !loading && (
+          <div className="text-center py-12 sm:py-20 w-full">
             <div className="w-16 h-16 mx-auto rounded-full bg-muted/50 flex items-center justify-center mb-4">
               <Search className="h-8 w-8 text-muted-foreground/50" />
             </div>
             <p className="text-foreground font-medium mb-1">No courses found</p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground px-4">
               {courses.length === 0 
                 ? "You are not enrolled in any courses yet"
                 : "Try adjusting your search or filters"}
             </p>
           </div>
         )}
-          </>
+          </div>
         )}
       </div>
     </div>
