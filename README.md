@@ -113,8 +113,6 @@ CourseFlow is a full-featured LMS that brings together students, instructors, an
 **Backend** (`backend/.env`):
 ```env
 MONGODB_URI=mongodb://localhost:27017/CourseFlow
-JWT_SECRET=your-secret-key-here
-JWT_EXPIRATION=86400000
 ```
 
 **Frontend** (`frontend/.env`):
