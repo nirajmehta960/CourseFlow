@@ -66,12 +66,37 @@ CourseFlow is a full-featured LMS that brings together students, instructors, an
 ## Quick Start
 
 ### Prerequisites
-- **Java 21+** (for backend)
-- **Node.js 18+** (for frontend)
-- **MongoDB** (local or Atlas)
-- **Maven 3.8+** (for backend)
 
-### Installation
+- **Docker & Docker Compose** (Recommended)
+- **Java 21+** (for manual backend run)
+- **Node.js 18+** (for manual frontend run)
+- **MongoDB Atlas Connection String**
+
+### Option 1: Docker (Recommended)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/nirajmehta960/CourseFlow.git
+   cd CourseFlow
+   ```
+
+2. **Configure Environment**
+   Ensure your `backend/.env` file contains your MongoDB Atlas connection string:
+   ```env
+   MONGODB_URI=mongodb+srv://...
+   ```
+
+3. **Run with Docker Compose**
+   ```bash
+   docker-compose up --build
+   ```
+
+4. **Access the Application**
+   - **Frontend**: [http://localhost:3000](http://localhost:3000)
+   - **Backend API**: [http://localhost:4000/api](http://localhost:4000/api)
+   - **Swagger UI**: [http://localhost:4000/api/swagger-ui/index.html](http://localhost:4000/api/swagger-ui/index.html)
+
+### Option 2: Manual Installation
 
 1. **Clone the repository**
    ```bash
@@ -106,7 +131,7 @@ CourseFlow is a full-featured LMS that brings together students, instructors, an
    # Start development server
    npm run dev
    ```
-   Frontend runs on `http://localhost:5173`
+   Frontend runs on `http://localhost:5173` (Manual Mode) or `http://localhost:3000` (Docker Mode)
 
 ### Environment Variables
 
@@ -156,8 +181,8 @@ CourseFlow/
 
 Once the backend is running, access the interactive API documentation:
 
-- **Swagger UI**: `http://localhost:4000/swagger-ui.html`
-- **OpenAPI JSON**: `http://localhost:4000/v3/api-docs`
+- **Swagger UI**: `http://localhost:4000/api/swagger-ui/index.html`
+- **OpenAPI JSON**: `http://localhost:4000/api/v3/api-docs`
 
 ---
 
@@ -188,17 +213,14 @@ node create_json_files.js  # Generate seed data
 
 ---
 
-## Deployment
+### AWS EC2 (Recommended)
+We have a comprehensive guide for deploying to AWS Free Tier (EC2) using Docker.
+**[Read the Deployment Guide](DEPLOYMENT.md)**
 
-### Backend
-- **Render**: Use `render.yaml` for one-click deployment
-- **Heroku**: Use `Procfile` and configure environment variables
-- **Docker**: Use provided `Dockerfile`
-
-### Frontend
-- **Vercel**: Connect GitHub repo for automatic deployments
-- **Netlify**: Configure build command: `npm run build`
-- **Static Hosting**: Deploy `dist/` folder to any static host
+### Other Options
+- **Backend on Render**: Use `render.yaml` for one-click deployment
+- **Frontend on Vercel**: Connect GitHub repo for automatic deployments
+- **Frontend on Netlify**: Configure build command: `npm run build`
 
 ---
 

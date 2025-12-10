@@ -50,6 +50,10 @@ coverage/
 *.tmp
 *.temp
 
-# Deployment documentation (keep README.md)
+# Deployment documentation (keep README.md and DEPLOYMENT.md)
 *.md
 !README.md
+!DEPLOYMENT.md
+
+# Secrets
+*.pem
