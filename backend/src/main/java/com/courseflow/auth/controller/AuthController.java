@@ -23,7 +23,8 @@ import org.springframework.web.bind.annotation.*;
  * 
  * Handles:
  * - POST /api/auth/signup - Register new user
- * - POST /api/auth/signin - Sign in (returns access token, sets refresh token cookie)
+ * - POST /api/auth/signin - Sign in (returns access token, sets refresh token
+ * cookie)
  * - POST /api/auth/signout - Clear refresh token cookie
  * - POST /api/auth/refresh - Get new access token using refresh token
  * - GET /api/auth/me - Get current authenticated user
@@ -33,9 +34,9 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Authentication endpoints for user signup, signin, and token management")
 public class AuthController {
-    
+
     private final AuthService authService;
-    
+
     @PostMapping("/signup")
     @Operation(summary = "Register a new user", description = "Create a new user account and return access token")
     public ResponseEntity<ApiResponse<AuthResponse>> signUp(
@@ -44,7 +45,7 @@ public class AuthController {
         AuthResponse authResponse = authService.signUp(request, response);
         return ResponseEntity.ok(ApiResponse.success(authResponse, "User registered successfully"));
     }
-    
+
     @PostMapping("/signin")
     @Operation(summary = "Sign in user", description = "Authenticate user and return access token with refresh token in cookie")
     public ResponseEntity<ApiResponse<AuthResponse>> signIn(
@@ -53,7 +54,7 @@ public class AuthController {
         AuthResponse authResponse = authService.signIn(request, response);
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Sign in successful"));
     }
-    
+
     @PostMapping("/refresh")
     @Operation(summary = "Refresh access token", description = "Generate new access token using refresh token from cookie")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(
@@ -63,14 +64,14 @@ public class AuthController {
         AuthResponse authResponse = authService.refresh(refreshToken, response);
         return ResponseEntity.ok(ApiResponse.success(authResponse, "Token refreshed successfully"));
     }
-    
+
     @PostMapping("/signout")
     @Operation(summary = "Sign out user", description = "Clear refresh token cookie")
     public ResponseEntity<ApiResponse<Void>> signOut(HttpServletResponse response) {
         authService.logout(response);
         return ResponseEntity.ok(ApiResponse.success(null, "Signed out successfully"));
     }
-    
+
     @GetMapping("/me")
     @Operation(summary = "Get current user", description = "Get authenticated user information")
     public ResponseEntity<ApiResponse<AuthResponse.UserInfo>> getCurrentUser() {
@@ -80,8 +81,17 @@ public class AuthController {
                 .name(user.getName())
                 .email(user.getEmail())
                 .roles(user.getRoles() != null ? user.getRoles() : new ArrayList<>(List.of(User.UserRole.STUDENT)))
+                .bio(user.getBio())
+                .phone(user.getPhone())
+                .location(user.getLocation())
+                .avatarUrl(user.getAvatarUrl())
+                .major(user.getMajor())
+                .year(user.getYear())
+                .enrollmentDate(user.getEnrollmentDate())
+                .studentId(user.getStudentId())
+                .timezone(user.getTimezone())
+                .links(user.getLinks())
                 .build();
         return ResponseEntity.ok(ApiResponse.success(userInfo));
     }
 }
-

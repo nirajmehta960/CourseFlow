@@ -15,10 +15,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AuthResponse {
-    
+
     private String accessToken;
     private UserInfo user;
-    
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -28,6 +28,18 @@ public class AuthResponse {
         private String name;
         private String email;
         private List<User.UserRole> roles;
+
+        // Profile fields
+        private String bio;
+        private String phone;
+        private String location;
+        private String avatarUrl;
+        private String major;
+        private String year;
+        private String enrollmentDate;
+        private String studentId;
+        private String timezone;
+
+        private List<User.Link> links;
     }
 }
-

@@ -270,6 +270,17 @@ public class AuthService {
                         .email(user.getEmail())
                         .roles(user.getRoles() != null ? user.getRoles()
                                 : new ArrayList<>(List.of(User.UserRole.STUDENT)))
+                        // Profile fields
+                        .bio(user.getBio())
+                        .phone(user.getPhone())
+                        .location(user.getLocation())
+                        .avatarUrl(user.getAvatarUrl())
+                        .major(user.getMajor())
+                        .year(user.getYear())
+                        .enrollmentDate(user.getEnrollmentDate())
+                        .studentId(user.getStudentId())
+                        .timezone(user.getTimezone())
+                        .links(user.getLinks())
                         .build())
                 .build();
     }
