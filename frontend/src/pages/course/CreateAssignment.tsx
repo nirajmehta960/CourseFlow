@@ -37,6 +37,7 @@ const CreateAssignment = () => {
   const [assignmentGroup, setAssignmentGroup] = useState("assignments");
   const [displayGradeAs, setDisplayGradeAs] = useState("percentage");
   const [submissionType, setSubmissionType] = useState("online");
+  const [maxAttempts, setMaxAttempts] = useState("3");
   const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
   const [dueTime, setDueTime] = useState("23:59");
   const [availableFrom, setAvailableFrom] = useState<Date | undefined>(undefined);
@@ -65,6 +66,7 @@ const CreateAssignment = () => {
         setTitle(assignment.title || "");
         setDescription(assignment.description || "");
         setPoints(assignment.points?.toString() || "100");
+        setMaxAttempts(assignment.maxAttempts?.toString() || "3");
 
         // Parse and set due date
         // Parse and set due date
@@ -172,6 +174,7 @@ const CreateAssignment = () => {
         availableFrom: availableFromISO,
         availableUntil: availableUntilISO,
         published: publish,
+        maxAttempts: parseInt(maxAttempts) || 3,
       };
 
       if (isEditMode && assignmentId) {
@@ -318,6 +321,24 @@ const CreateAssignment = () => {
               <SelectItem value="paper">On Paper</SelectItem>
               <SelectItem value="external">External Tool</SelectItem>
               <SelectItem value="none">No Submission</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Allowed Attempts */}
+        <div className="grid grid-cols-[120px_1fr] items-center gap-4">
+          <Label htmlFor="maxAttempts" className="text-right">Allowed Attempts</Label>
+          <Select value={maxAttempts} onValueChange={setMaxAttempts}>
+            <SelectTrigger className="max-w-[200px] bg-muted/50">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">1 Attempt</SelectItem>
+              <SelectItem value="2">2 Attempts</SelectItem>
+              <SelectItem value="3">3 Attempts</SelectItem>
+              <SelectItem value="5">5 Attempts</SelectItem>
+              <SelectItem value="10">10 Attempts</SelectItem>
+              <SelectItem value="100">Unlimited</SelectItem>
             </SelectContent>
           </Select>
         </div>

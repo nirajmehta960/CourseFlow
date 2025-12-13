@@ -17,6 +17,7 @@ export interface Assignment {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+  maxAttempts?: number;
 }
 
 export interface Submission {
@@ -25,6 +26,7 @@ export interface Submission {
   assignmentId: string;
   studentId: string;
   status: 'DRAFT' | 'SUBMITTED';
+  attemptNumber?: number;
   bodyText?: string;
   fileUrls: string[];
   submittedAt?: string;
@@ -44,6 +46,7 @@ export interface AssignmentRequest {
   availableUntil?: string;
   points: number;
   published?: boolean;
+  maxAttempts?: number;
 }
 
 export interface SubmissionRequest {

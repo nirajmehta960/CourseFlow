@@ -123,24 +123,24 @@ export const getErrorMessage = (error: any): string => {
   if (parsed) {
     return parsed.message;
   }
-  
+
   // Fallback to old format
   if (error?.response?.data?.error?.message) {
     return error.response.data.error.message;
   }
-  
+
   if (error?.error?.message) {
     return error.error.message;
   }
-  
+
   if (error?.response?.data?.message) {
     return error.response.data.message;
   }
-  
+
   if (error?.message) {
     return error.message;
   }
-  
+
   return 'An unexpected error occurred. Please try again.';
 };
 
@@ -173,7 +173,7 @@ export const apiFetch = async <T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> => {
   const token = getAccessToken();
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -195,7 +195,7 @@ export const apiFetch = async <T>(
     const isJson = contentType && contentType.includes('application/json');
 
     let data: ApiResponse<T>;
-    
+
     if (isJson) {
       try {
         data = await response.json();
@@ -216,7 +216,7 @@ export const apiFetch = async <T>(
       // Non-JSON response (like HTML error page for 404)
       const error: ApiError = {
         code: response.status === 404 ? 'NOT_FOUND' : 'UNKNOWN_ERROR',
-        message: response.status === 404 
+        message: response.status === 404
           ? `Endpoint not found: ${endpoint}. Please check if the backend is running.`
           : `Server returned ${response.status} ${response.statusText}`,
       };
@@ -240,14 +240,14 @@ export const apiFetch = async <T>(
         };
         throw apiError;
       }
-      
+
       // Fallback: old ApiResponse format
       const error: ApiError = {
         code: data.error?.code || 'UNKNOWN_ERROR',
         message: data.error?.message || 'An error occurred',
         details: data.error?.details,
       };
-      
+
       // Throw error with response data attached for better error handling
       const apiError: any = new Error(error.message);
       apiError.response = {
@@ -267,7 +267,7 @@ export const apiFetch = async <T>(
     if (error.response) {
       throw error;
     }
-    
+
     // Handle network errors
     if (error instanceof TypeError && error.message.includes('fetch')) {
       const networkError: any = new Error('Network error. Please check your connection.');
@@ -283,8 +283,29 @@ export const apiFetch = async <T>(
       };
       throw networkError;
     }
-    
+
     throw error;
   }
 };
 
+
+export interface FileUploadResponse {
+  url: string;
+  fileName: string;
+  fileSize: number;
+}
+
+/**
+ * Upload a file (base64 encoded)
+ */
+export const uploadFile = async (base64Data: string, fileName: string): Promise<FileUploadResponse> => {
+  const response = await apiFetch<FileUploadResponse>('/files/upload', {
+    method: 'POST',
+    body: JSON.stringify({ fileName, base64Data }),
+  });
+
+  if (!response.data) {
+    throw new Error(getApiThrowMessage(response, 'Failed to upload file. Please try again.'));
+  }
+  return response.data;
+};

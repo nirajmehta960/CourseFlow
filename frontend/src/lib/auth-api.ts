@@ -21,6 +21,16 @@ export interface UserInfo {
   name: string;
   email: string;
   roles: ('STUDENT' | 'INSTRUCTOR' | 'TA' | 'ADMIN')[];
+  bio?: string;
+  phone?: string;
+  location?: string;
+  avatarUrl?: string;
+  major?: string;
+  year?: string;
+  enrollmentDate?: string;
+  studentId?: string;
+  timezone?: string;
+  links?: { name: string; url: string }[];
 }
 
 export interface AuthResponse {
@@ -98,7 +108,7 @@ export const signOut = async (): Promise<void> => {
  */
 export const getCurrentUser = async (): Promise<UserInfo> => {
   const response = await apiFetch<UserInfo>('/auth/me');
-  
+
   if (!response.data) {
     throw new Error(getApiThrowMessage(response, 'Failed to load user. Please try again.'));
   }
@@ -125,3 +135,19 @@ export const refreshToken = async (): Promise<AuthResponse> => {
   return response.data;
 };
 
+
+/**
+ * Update user profile
+ */
+export const updateProfile = async (userId: string, data: Partial<UserInfo>): Promise<UserInfo> => {
+  const response = await apiFetch<UserInfo>(`/users/${userId}/profile`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.data) {
+    throw new Error(getApiThrowMessage(response, 'Failed to update user. Please try again.'));
+  }
+
+  return response.data;
+};

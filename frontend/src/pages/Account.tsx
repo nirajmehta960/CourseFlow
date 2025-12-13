@@ -1,10 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -15,46 +13,157 @@ import {
 } from "@/components/ui/select";
 import {
   Camera,
-  Mail,
-  Phone,
-  MapPin,
   GraduationCap,
   Globe,
-  Bell,
-  Lock,
-  Palette,
+  MapPin,
   Link as LinkIcon,
   ExternalLink,
+  Plus,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { updateProfile, UserInfo } from "@/lib/auth-api";
+import { uploadFile } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
 
 const Account = () => {
   const [activeTab, setActiveTab] = useState("profile");
-  const { user: authUser } = useAuth();
+  const { user, refreshUser } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Use real user data from auth context, with fallback to defaults
-  const user = {
-    name: authUser?.name || "User",
-    email: authUser?.email || "",
-    phone: "+1 (555) 123-4567",
-    location: "Boston, MA",
-    timezone: "America/New_York",
-    bio: "Computer Science student passionate about web development and machine learning.",
-    role: authUser?.roles?.[0] || "STUDENT",
-    roles: authUser?.roles || ["STUDENT"],
-    major: "Computer Science",
-    year: "Senior",
-    enrollmentDate: "Fall 2021",
-    studentId: "STU-2024-78542",
-    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-    links: [
-      { name: "GitHub", url: "github.com/johndoe" },
-      { name: "LinkedIn", url: "linkedin.com/in/johndoe" },
-    ],
+  // Form state
+  const [formData, setFormData] = useState<Partial<UserInfo>>({});
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name,
+        email: user.email,
+        bio: user.bio || "",
+        phone: user.phone || "",
+        location: user.location || "",
+        major: user.major || "",
+        year: user.year || "",
+        enrollmentDate: user.enrollmentDate || "",
+        studentId: user.studentId || "",
+        avatarUrl: user.avatarUrl || "",
+        timezone: user.timezone || "America/New_York",
+        links: user.links || [],
+      });
+    }
+  }, [user]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
-  
-  // Get initials for avatar fallback
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleLinkChange = (index: number, field: "name" | "url", value: string) => {
+    const newLinks = [...(formData.links || [])];
+    newLinks[index] = { ...newLinks[index], [field]: value };
+    setFormData((prev) => ({ ...prev, links: newLinks }));
+  };
+
+  const addLink = () => {
+    setFormData((prev) => ({
+      ...prev,
+      links: [...(prev.links || []), { name: "", url: "" }],
+    }));
+  };
+
+  const removeLink = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      links: (prev.links || []).filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      await updateProfile(user.id, formData);
+      await refreshUser();
+      setIsEditing(false); // Exit edit mode on success
+      toast({
+        title: "Profile updated",
+        description: "Your changes have been saved successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Image size must be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+
+        setIsLoading(true);
+        try {
+          // Upload file
+          const uploadResponse = await uploadFile(base64String, file.name);
+
+          // Allow immediate preview
+          const newAvatarUrl = uploadResponse.url;
+          setFormData(prev => ({ ...prev, avatarUrl: newAvatarUrl }));
+
+          // Save immediately
+          await updateProfile(user.id, { avatarUrl: newAvatarUrl });
+          await refreshUser();
+
+          toast({
+            title: "Avatar updated",
+            description: "Your profile picture has been updated.",
+          });
+        } catch (error: any) {
+          toast({
+            title: "Upload failed",
+            description: error.message || "Failed to upload image",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const getInitials = (name: string) => {
+    if (!name) return "U";
     return name
       .split(" ")
       .map((n) => n[0])
@@ -62,6 +171,10 @@ const Account = () => {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  if (!user) {
+    return <div className="p-8 text-center text-muted-foreground">Loading user data...</div>;
+  }
 
   return (
     <div className="w-full min-h-full bg-background overflow-x-hidden">
@@ -72,36 +185,53 @@ const Account = () => {
             {/* Avatar */}
             <div className="relative group shrink-0">
               <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-4 border-background shadow-lg">
-                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarImage src={formData.avatarUrl || user.avatarUrl} alt={formData.name || user.name} />
                 <AvatarFallback className="text-xl sm:text-2xl bg-primary text-primary-foreground">
-                  {getInitials(user.name)}
+                  {getInitials(formData.name || user.name)}
                 </AvatarFallback>
               </Avatar>
-              <button className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-              </button>
+              {isEditing && (
+                <button
+                  className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isLoading}
+                >
+                  <Camera className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                </button>
+              )}
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
             </div>
 
             {/* User Info */}
             <div className="flex-1 min-w-0 w-full sm:w-auto">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
                 <div className="min-w-0 flex-1">
-                  <h1 className="text-xl sm:text-2xl font-semibold text-foreground truncate">{user.name}</h1>
+                  <h1 className="text-xl sm:text-2xl font-semibold text-foreground truncate">{formData.name || user.name}</h1>
                   <p className="text-sm sm:text-base text-muted-foreground mt-0.5 truncate">{user.email}</p>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-3">
                     <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
                       <GraduationCap className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                      <span className="truncate">{user.role} · {user.major}</span>
+                      <span className="truncate">
+                        {user.roles.includes("INSTRUCTOR")
+                          ? (formData.year || "Instructor")
+                          : user.roles[0]}
+                        {formData.major ? ` · ${formData.major}` : ""}
+                      </span>
                     </span>
-                    <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
-                      <MapPin className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-                      <span className="truncate">{user.location}</span>
-                    </span>
+                    {formData.location && (
+                      <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground">
+                        <MapPin className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
+                        <span className="truncate">{formData.location}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="shrink-0 w-full sm:w-auto">
-                  Edit Profile
-                </Button>
               </div>
             </div>
           </div>
@@ -118,24 +248,6 @@ const Account = () => {
             >
               Profile
             </TabsTrigger>
-            <TabsTrigger
-              value="notifications"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3"
-            >
-              Notifications
-            </TabsTrigger>
-            <TabsTrigger
-              value="security"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3"
-            >
-              Security
-            </TabsTrigger>
-            <TabsTrigger
-              value="preferences"
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-0 pb-3"
-            >
-              Preferences
-            </TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
@@ -145,72 +257,174 @@ const Account = () => {
               <div className="lg:col-span-2 space-y-6 sm:space-y-8">
                 {/* Personal Information */}
                 <div className="bg-card border border-border rounded-lg p-6">
-                  <h2 className="text-lg font-semibold text-foreground mb-6">Personal Information</h2>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-lg font-semibold text-foreground">Personal Information</h2>
+                    {!isEditing && (
+                      <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                        <Pencil className="h-4 w-4 mr-2" /> Edit Profile
+                      </Button>
+                    )}
+                  </div>
                   <div className="space-y-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Name */}
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">First Name</Label>
-                        <Input defaultValue="John" />
+                        <Label className="text-sm font-medium">Name</Label>
+                        {isEditing ? (
+                          <Input
+                            name="name"
+                            value={formData.name || ""}
+                            onChange={handleChange}
+                          />
+                        ) : (
+                          <p className="text-sm text-foreground py-2 border-b border-transparent">{formData.name}</p>
+                        )}
                       </div>
+
+                      {/* Email - Always Read Only */}
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Last Name</Label>
-                        <Input defaultValue="Doe" />
+                        <Label className="text-sm font-medium">Email</Label>
+                        <p className="text-sm text-muted-foreground py-2 border-b border-transparent">{user.email}</p>
                       </div>
                     </div>
+
+                    {/* Bio */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Bio</Label>
-                      <textarea
-                        className="w-full min-h-[100px] px-3 py-2 text-sm border border-input rounded-md bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                        defaultValue={user.bio}
-                      />
+                      {isEditing ? (
+                        <textarea
+                          name="bio"
+                          className="w-full min-h-[100px] px-3 py-2 text-sm border border-input rounded-md bg-background resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                          value={formData.bio || ""}
+                          onChange={handleChange}
+                        />
+                      ) : (
+                        <p className="text-sm text-foreground py-2 min-h-[2.5rem]">{formData.bio || "No bio added."}</p>
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Email</Label>
-                      <Input defaultValue={user.email} type="email" />
-                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Phone */}
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Phone</Label>
-                        <Input defaultValue={user.phone} />
+                        {isEditing ? (
+                          <Input
+                            name="phone"
+                            value={formData.phone || ""}
+                            onChange={handleChange}
+                          />
+                        ) : (
+                          <p className="text-sm text-foreground py-2">{formData.phone || "Not set"}</p>
+                        )}
                       </div>
+
+                      {/* Location */}
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Location</Label>
-                        <Input defaultValue={user.location} />
+                        {isEditing ? (
+                          <Input
+                            name="location"
+                            value={formData.location || ""}
+                            onChange={handleChange}
+                          />
+                        ) : (
+                          <p className="text-sm text-foreground py-2">{formData.location || "Not set"}</p>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Academic Information */}
+                {/* Academic/Professional Information */}
                 <div className="bg-card border border-border rounded-lg p-6">
-                  <h2 className="text-lg font-semibold text-foreground mb-6">Academic Information</h2>
+                  <h2 className="text-lg font-semibold text-foreground mb-6">
+                    {user.roles.includes("INSTRUCTOR") ? "Professional Information" : "Academic Information"}
+                  </h2>
                   <div className="space-y-5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Student/Employee ID */}
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Student ID</Label>
-                        <Input defaultValue={user.studentId} disabled className="bg-muted" />
+                        <Label className="text-sm font-medium">
+                          {user.roles.includes("INSTRUCTOR") ? "Employee ID" : "Student ID"}
+                        </Label>
+                        {isEditing ? (
+                          <Input
+                            name="studentId"
+                            value={formData.studentId || ""}
+                            onChange={handleChange}
+                            placeholder={user.roles.includes("INSTRUCTOR") ? "Enter Employee ID" : "Enter Student ID"}
+                          />
+                        ) : (
+                          <p className="text-sm text-foreground py-2">{formData.studentId || "Not set"}</p>
+                        )}
                       </div>
+
+                      {/* Major/Department */}
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Major</Label>
-                        <Input defaultValue={user.major} disabled className="bg-muted" />
+                        <Label className="text-sm font-medium">
+                          {user.roles.includes("INSTRUCTOR") ? "Department" : "Major"}
+                        </Label>
+                        {isEditing ? (
+                          <Input
+                            name="major"
+                            value={formData.major || ""}
+                            onChange={handleChange}
+                            placeholder={user.roles.includes("INSTRUCTOR") ? "e.g. Computer Science" : "e.g. Computer Science"}
+                          />
+                        ) : (
+                          <p className="text-sm text-foreground py-2">{formData.major || "Not set"}</p>
+                        )}
                       </div>
                     </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Year/Title */}
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Year</Label>
-                        <Input defaultValue={user.year} disabled className="bg-muted" />
+                        <Label className="text-sm font-medium">
+                          {user.roles.includes("INSTRUCTOR") ? "Title" : "Year"}
+                        </Label>
+                        {isEditing ? (
+                          <Input
+                            name="year"
+                            value={formData.year || ""}
+                            onChange={handleChange}
+                            placeholder={user.roles.includes("INSTRUCTOR") ? "e.g. Associate Professor" : "e.g. Senior"}
+                          />
+                        ) : (
+                          <p className="text-sm text-foreground py-2">{formData.year || "Not set"}</p>
+                        )}
                       </div>
+
+                      {/* Enrollment/Joined Date */}
                       <div className="space-y-2">
-                        <Label className="text-sm font-medium">Enrollment Date</Label>
-                        <Input defaultValue={user.enrollmentDate} disabled className="bg-muted" />
+                        <Label className="text-sm font-medium">
+                          {user.roles.includes("INSTRUCTOR") ? "Date Joined" : "Enrollment Date"}
+                        </Label>
+                        {isEditing ? (
+                          <Input
+                            name="enrollmentDate"
+                            value={formData.enrollmentDate || ""}
+                            onChange={handleChange}
+                            placeholder={user.roles.includes("INSTRUCTOR") ? "e.g. Fall 2020" : "e.g. Fall 2021"}
+                          />
+                        ) : (
+                          <p className="text-sm text-foreground py-2">{formData.enrollmentDate || "Not set"}</p>
+                        )}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end">
-                  <Button>Save Changes</Button>
-                </div>
+                {isEditing && (
+                  <div className="flex justify-end gap-3">
+                    <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isLoading}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSave} disabled={isLoading}>
+                      {isLoading ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Sidebar */}
@@ -221,27 +435,58 @@ const Account = () => {
                     <LinkIcon className="h-4 w-4" />
                     Links
                   </h3>
-                  <div className="space-y-3">
-                    {user.links.map((link) => (
-                      <div key={link.name} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-foreground">{link.name}</span>
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      {formData.links?.map((link, i) => (
+                        <div key={i} className="flex gap-2 items-start">
+                          <div className="grid grid-cols-1 gap-2 flex-1">
+                            <Input
+                              placeholder="Name (e.g. GitHub)"
+                              value={link.name}
+                              onChange={(e) => handleLinkChange(i, "name", e.target.value)}
+                              className="h-8 text-sm"
+                            />
+                            <Input
+                              placeholder="URL"
+                              value={link.url}
+                              onChange={(e) => handleLinkChange(i, "url", e.target.value)}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive shrink-0"
+                            onClick={() => removeLink(i)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <a
-                          href={`https://${link.url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline text-sm flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </div>
-                    ))}
-                    <Button variant="outline" size="sm" className="w-full mt-2">
-                      Add Link
-                    </Button>
-                  </div>
+                      ))}
+                      <Button variant="outline" size="sm" className="w-full mt-2" onClick={addLink}>
+                        <Plus className="h-4 w-4 mr-2" /> Add Link
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {formData.links && formData.links.length > 0 ? (
+                        formData.links.map((link, i) => (
+                          <a
+                            key={i}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-sm text-primary hover:underline"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            {link.name || link.url}
+                          </a>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No links added</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Timezone */}
@@ -250,153 +495,30 @@ const Account = () => {
                     <Globe className="h-4 w-4" />
                     Timezone
                   </h3>
-                  <Select defaultValue={user.timezone}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                      <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                      <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                      <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="mt-0">
-            <div className="max-w-2xl">
-              <div className="bg-card border border-border rounded-lg divide-y divide-border">
-                {[
-                  { title: "Assignment Reminders", description: "Get notified 24 hours before assignments are due" },
-                  { title: "Grade Updates", description: "Receive notifications when grades are posted" },
-                  { title: "Announcements", description: "Get notified about course announcements" },
-                  { title: "Discussion Replies", description: "Receive notifications when someone replies to your posts" },
-                  { title: "Calendar Events", description: "Get reminders for upcoming calendar events" },
-                  { title: "Email Notifications", description: "Receive important updates via email" },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-5">
-                    <div>
-                      <p className="font-medium text-foreground">{item.title}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
-                    </div>
-                    <Switch defaultChecked={i < 4} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Security Tab */}
-          <TabsContent value="security" className="mt-0">
-            <div className="max-w-2xl space-y-6">
-              <div className="bg-card border border-border rounded-lg p-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <Lock className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">Password</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      Last changed 30 days ago
-                    </p>
-                  </div>
-                  <Button variant="outline">Change Password</Button>
-                </div>
-              </div>
-
-              <div className="bg-card border border-border rounded-lg p-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-2 rounded-lg bg-muted">
-                    <Bell className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">Two-Factor Authentication</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      Add an extra layer of security to your account
-                    </p>
-                  </div>
-                  <Button variant="outline">Enable</Button>
-                </div>
-              </div>
-
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="font-semibold text-foreground mb-4">Active Sessions</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground text-sm">Chrome on MacOS</p>
-                      <p className="text-xs text-muted-foreground">Boston, MA · Current session</p>
-                    </div>
-                    <span className="text-xs text-success font-medium">Active now</span>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground text-sm">Safari on iPhone</p>
-                      <p className="text-xs text-muted-foreground">Boston, MA · Last active 2 hours ago</p>
-                    </div>
-                    <Button variant="ghost" size="sm" className="text-destructive h-7">
-                      Revoke
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Preferences Tab */}
-          <TabsContent value="preferences" className="mt-0">
-            <div className="max-w-2xl">
-              <div className="bg-card border border-border rounded-lg divide-y divide-border">
-                <div className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="p-2 rounded-lg bg-muted">
-                      <Palette className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground">Theme</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        Choose your preferred color scheme
-                      </p>
-                    </div>
-                    <Select defaultValue="light">
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
+                  {isEditing ? (
+                    <Select
+                      value={formData.timezone}
+                      onValueChange={(val) => handleSelectChange("timezone", val)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select timezone" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
+                        <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                        <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                        <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                        <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="p-2 rounded-lg bg-muted">
-                      <Globe className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground">Language</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        Select your preferred language
-                      </p>
-                    </div>
-                    <Select defaultValue="en">
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="es">Español</SelectItem>
-                        <SelectItem value="fr">Français</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  ) : (
+                    <p className="text-sm text-foreground">
+                      {formData.timezone === "America/New_York" && "Eastern Time (ET)"}
+                      {formData.timezone === "America/Chicago" && "Central Time (CT)"}
+                      {formData.timezone === "America/Denver" && "Mountain Time (MT)"}
+                      {formData.timezone === "America/Los_Angeles" && "Pacific Time (PT)"}
+                      {!["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles"].includes(formData.timezone || "") && (formData.timezone || "Not set")}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
