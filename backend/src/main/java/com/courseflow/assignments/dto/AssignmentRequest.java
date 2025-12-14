@@ -19,36 +19,36 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AssignmentRequest {
-    
+
     @NotBlank(message = "Title is required")
     @Size(max = 200, message = "Title must be at most 200 characters")
     private String title;
-    
+
     /**
      * Rich text description as HTML.
      */
     private String description;
-    
+
     @NotNull(message = "Points is required")
     @PositiveOrZero(message = "Points must be non-negative")
     private Double points;
-    
+
     /**
      * Due date and time for the assignment.
      */
     private Instant dueAt;
-    
+
     /**
      * When the assignment becomes available (optional).
      */
     private Instant availableFrom;
-    
+
     /**
      * When the assignment is no longer available (optional).
      */
     private Instant availableUntil;
-    
+
     private Boolean published;
+
+    private Integer maxAttempts;
 }
-
-

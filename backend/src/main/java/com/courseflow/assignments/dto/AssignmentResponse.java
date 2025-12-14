@@ -15,7 +15,7 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AssignmentResponse {
-    
+
     private String id;
     private String courseId;
     private String title;
@@ -31,6 +31,5 @@ public class AssignmentResponse {
     private String createdBy;
     private Instant createdAt;
     private Instant updatedAt;
+    private Integer maxAttempts;
 }
-
-

@@ -31,6 +31,14 @@ public interface SubmissionRepository extends MongoRepository<Submission, String
     List<Submission> findByAssignmentIdOrderBySubmittedAtDesc(String assignmentId);
 
     /**
+     * Find all submissions for an assignment (unordered).
+     * 
+     * @param assignmentId The assignment ID
+     * @return List of submissions
+     */
+    List<Submission> findByAssignmentId(String assignmentId);
+
+    /**
      * Find all submissions for a course and student.
      * 
      * @param courseId  The course ID
@@ -56,4 +64,12 @@ public interface SubmissionRepository extends MongoRepository<Submission, String
      * @return Count of pending submissions
      */
     long countByCourseIdAndStatusAndGradeIsNull(String courseId, Submission.SubmissionStatus status);
+
+    /**
+     * Find all submissions for a list of assignment IDs.
+     * 
+     * @param assignmentIds List of assignment IDs
+     * @return List of submissions
+     */
+    List<Submission> findByAssignmentIdIn(List<String> assignmentIds);
 }

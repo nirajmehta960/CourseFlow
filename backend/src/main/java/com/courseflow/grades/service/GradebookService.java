@@ -489,6 +489,12 @@ public class GradebookService {
      * @param courseId The course ID
      * @return GradebookViewResponse with students and items matrix
      */
+    /**
+     * Get gradebook view for instructor (table format with all students and items).
+     * 
+     * @param courseId The course ID
+     * @return GradebookViewResponse with students and items matrix
+     */
     public GradebookViewResponse getGradebookView(String courseId) {
         User currentUser = authService.getCurrentUser();
 
@@ -516,8 +522,56 @@ public class GradebookService {
         List<Assignment> assignments = assignmentRepository.findByCourseIdAndPublishedOrderByDueAtAsc(courseId, true);
         List<Quiz> quizzes = quizRepository.findByCourseIdAndPublishedOrderByCreatedAtDesc(courseId, true);
 
+        // Pre-fetch all submissions for these assignments (bulk fetch)
+        List<String> assignmentIds = assignments.stream().map(Assignment::getId).collect(Collectors.toList());
+        List<Submission> allSubmissions = assignmentIds.isEmpty() ? new ArrayList<>()
+                : submissionRepository.findByAssignmentIdIn(assignmentIds);
+
+        // Map assignments' submissions by StudentID -> AssignmentID -> Submission
+        Map<String, Map<String, Submission>> submissionMap = new HashMap<>(); // Student -> (Assignment -> Submission)
+        for (Submission s : allSubmissions) {
+            submissionMap.computeIfAbsent(s.getStudentId(), k -> new HashMap<>()).put(s.getAssignmentId(), s);
+        }
+
+        // Pre-fetch all quiz attempts (bulk fetch)
+        List<String> quizIds = quizzes.stream().map(Quiz::getId).collect(Collectors.toList());
+        List<QuizAttempt> allAttempts = quizIds.isEmpty() ? new ArrayList<>()
+                : quizAttemptRepository.findByQuizIdIn(quizIds);
+
+        // Map quiz attempts: StudentID -> QuizID -> Best Attempt (most recent started)
+        Map<String, Map<String, QuizAttempt>> quizAttemptMap = new HashMap<>();
+        // Group by Student -> Quiz -> List<Attempt>
+        Map<String, Map<String, List<QuizAttempt>>> rawAttemptMap = new HashMap<>();
+        for (QuizAttempt qa : allAttempts) {
+            rawAttemptMap.computeIfAbsent(qa.getStudentId(), k -> new HashMap<>())
+                    .computeIfAbsent(qa.getQuizId(), k -> new ArrayList<>())
+                    .add(qa);
+        }
+        // Reduce to best attempt (simplistic: most recent started, just like original
+        // code findFirstBy...OrderByStartedAtDesc)
+        // Note: original code used findFirst...Desc, so we sort list or just pick max
+        for (String sId : rawAttemptMap.keySet()) {
+            for (String qId : rawAttemptMap.get(sId).keySet()) {
+                List<QuizAttempt> attempts = rawAttemptMap.get(sId).get(qId);
+                attempts.sort((a, b) -> b.getStartedAt().compareTo(a.getStartedAt())); // Descending
+                quizAttemptMap.computeIfAbsent(sId, k -> new HashMap<>()).put(qId, attempts.get(0));
+            }
+        }
+
+        // Pre-fetch all cached gradebooks for the course
+        List<Gradebook> cachedGradebooks = gradebookRepository.findByCourseId(courseId);
+        Map<String, Gradebook> cachedGradebookMap = cachedGradebooks.stream()
+                .collect(Collectors.toMap(Gradebook::getStudentId, g -> g));
+
         // Build items list
         List<GradebookViewResponse.GradebookItem> items = new ArrayList<>();
+        // Map to store quiz total points for fast lookup
+        Map<String, Double> quizPointsMap = new HashMap<>();
+        for (Quiz quiz : quizzes) {
+            List<Question> qs = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
+            double pts = qs.stream().mapToDouble(q -> q.getPoints() != null ? q.getPoints() : 0.0).sum();
+            quizPointsMap.put(quiz.getId(), pts);
+        }
 
         for (Assignment assignment : assignments) {
             items.add(GradebookViewResponse.GradebookItem.builder()
@@ -529,47 +583,42 @@ public class GradebookService {
         }
 
         for (Quiz quiz : quizzes) {
-            // Calculate total points for quiz (using separate Question entities)
-            double quizTotalPoints = 0.0;
-            List<Question> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
-            if (!questions.isEmpty()) {
-                quizTotalPoints = questions.stream()
-                        .mapToDouble(q -> q.getPoints() != null ? q.getPoints() : 0.0)
-                        .sum();
-            }
-
             items.add(GradebookViewResponse.GradebookItem.builder()
                     .itemId(quiz.getId())
                     .title(quiz.getTitle())
                     .type("QUIZ")
-                    .points(quizTotalPoints > 0 ? quizTotalPoints : null)
+                    .points(quizPointsMap.getOrDefault(quiz.getId(), 0.0) > 0
+                            ? quizPointsMap.getOrDefault(quiz.getId(), 0.0)
+                            : null)
                     .build());
         }
 
         // Build student grades matrix
         List<GradebookViewResponse.StudentGradeRow> studentRows = new ArrayList<>();
 
+        // Bulk fetch student names
+        List<User> students = userRepository.findAllById(studentIds);
+        Map<String, String> studentNameMap = students.stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
+
         for (String studentId : studentIds) {
             Map<String, GradebookViewResponse.GradeCell> grades = new HashMap<>();
             double totalEarned = 0.0;
             double totalPossible = 0.0;
 
-            // Get assignment grades (check for override in cached gradebook)
-            Gradebook cachedGradebook = gradebookRepository.findByCourseIdAndStudentId(courseId, studentId)
-                    .orElse(null);
+            Gradebook cachedGradebook = cachedGradebookMap.get(studentId);
 
             for (Assignment assignment : assignments) {
-                Optional<Submission> submission = submissionRepository
-                        .findByAssignmentIdAndStudentId(assignment.getId(), studentId);
+                // Get from pre-fetched map
+                Submission submission = submissionMap.getOrDefault(studentId, new HashMap<>()).get(assignment.getId());
 
                 Double score = null;
                 String status = "NOT_SUBMITTED";
-                if (submission.isPresent()) {
-                    Submission sub = submission.get();
-                    if (sub.getStatus() == Submission.SubmissionStatus.SUBMITTED) {
+                if (submission != null) {
+                    if (submission.getStatus() == Submission.SubmissionStatus.SUBMITTED) {
                         status = "SUBMITTED";
-                        if (sub.getGrade() != null) {
-                            score = sub.getGrade().getPointsAwarded();
+                        if (submission.getGrade() != null) {
+                            score = submission.getGrade().getPointsAwarded();
                             status = "GRADED";
                         }
                     } else {
@@ -605,23 +654,13 @@ public class GradebookService {
 
             // Get quiz grades (check for override in cached gradebook)
             for (Quiz quiz : quizzes) {
-                Optional<QuizAttempt> attemptOpt = quizAttemptRepository
-                        .findFirstByQuizIdAndStudentIdOrderByStartedAtDesc(quiz.getId(), studentId);
+                QuizAttempt attempt = quizAttemptMap.getOrDefault(studentId, new HashMap<>()).get(quiz.getId());
 
                 Double score = null;
                 String status = "NOT_SUBMITTED";
-                double quizTotalPoints = 0.0;
+                double quizTotalPoints = quizPointsMap.getOrDefault(quiz.getId(), 0.0);
 
-                // Calculate total points for quiz (using separate Question entities)
-                List<Question> questions = questionRepository.findByQuizIdOrderByPositionAsc(quiz.getId());
-                if (!questions.isEmpty()) {
-                    quizTotalPoints = questions.stream()
-                            .mapToDouble(q -> q.getPoints() != null ? q.getPoints() : 0.0)
-                            .sum();
-                }
-
-                if (attemptOpt.isPresent()) {
-                    QuizAttempt attempt = attemptOpt.get();
+                if (attempt != null) {
                     if (attempt.getStatus() == QuizAttempt.AttemptStatus.SUBMITTED) {
                         status = "SUBMITTED";
                         if (attempt.getScore() != null) {
@@ -661,8 +700,7 @@ public class GradebookService {
 
             double percent = totalPossible > 0 ? (totalEarned / totalPossible) * 100.0 : 0.0;
 
-            User student = userRepository.findById(studentId).orElse(null);
-            String studentName = student != null ? student.getName() : "Unknown Student";
+            String studentName = studentNameMap.getOrDefault(studentId, "Unknown Student");
 
             studentRows.add(GradebookViewResponse.StudentGradeRow.builder()
                     .studentId(studentId)

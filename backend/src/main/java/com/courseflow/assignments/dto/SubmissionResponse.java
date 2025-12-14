@@ -17,20 +17,21 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SubmissionResponse {
-    
+
     private String id;
     private String courseId;
     private String assignmentId;
     private String studentId;
     private com.courseflow.assignments.model.Submission.SubmissionStatus status;
     private String bodyText;
-    
+
     @Builder.Default
     private List<String> fileUrls = new ArrayList<>();
-    
+
     private Instant submittedAt;
+    private Integer attemptNumber;
     private GradeInfo grade;
-    
+
     /**
      * Grade information nested object.
      */
@@ -45,5 +46,3 @@ public class SubmissionResponse {
         private Instant gradedAt;
     }
 }
-
-

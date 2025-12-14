@@ -26,52 +26,59 @@ import java.util.List;
 @CompoundIndex(name = "assignment_student_idx", def = "{'assignmentId': 1, 'studentId': 1}", unique = true)
 @CompoundIndex(name = "course_student_idx", def = "{'courseId': 1, 'studentId': 1}")
 public class Submission {
-    
+
     @Id
     private String id;
-    
+
     @Indexed
     private String courseId;
-    
+
     @Indexed
     private String assignmentId;
-    
+
     @Indexed
     private String studentId;
-    
+
     /**
      * Submission status: DRAFT or SUBMITTED.
      */
     @Builder.Default
     private SubmissionStatus status = SubmissionStatus.DRAFT;
-    
+
+    /**
+     * Current attempt number (0-indexed or 1-indexed, usually we start at 1 for the
+     * first attempt).
+     */
+    @Builder.Default
+    private Integer attemptNumber = 0;
+
     /**
      * Text body of the submission (optional).
      */
     private String bodyText;
-    
+
     /**
      * List of file URLs (for uploaded files).
      */
     @Builder.Default
     private List<String> fileUrls = new ArrayList<>();
-    
+
     @CreatedDate
     private Instant createdAt;
-    
+
     @LastModifiedDate
     private Instant updatedAt;
-    
+
     /**
      * When the submission was submitted (null while DRAFT).
      */
     private Instant submittedAt;
-    
+
     /**
      * Grade information for this submission.
      */
     private Grade grade;
-    
+
     /**
      * Submission status enum.
      */
@@ -79,7 +86,7 @@ public class Submission {
         DRAFT,
         SUBMITTED
     }
-    
+
     /**
      * Grade information nested object.
      */
@@ -92,22 +99,20 @@ public class Submission {
          * Points awarded (out of assignment points).
          */
         private Double pointsAwarded;
-        
+
         /**
          * Feedback from the grader.
          */
         private String feedback;
-        
+
         /**
          * ID of the user who graded this submission.
          */
         private String gradedBy;
-        
+
         /**
          * Timestamp when the submission was graded.
          */
         private Instant gradedAt;
     }
 }
-
-
