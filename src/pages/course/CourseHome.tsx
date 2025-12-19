@@ -19,85 +19,51 @@ import {
   Calendar,
   Play,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { getModules, Module, ModuleItem, ModuleItemType } from "@/lib/modules-api";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import { format, parseISO } from "date-fns";
 
-interface Module {
-  id: string;
-  title: string;
-  published: boolean;
-  items: ModuleItem[];
-}
-
-interface ModuleItem {
-  id: string;
-  title: string;
-  type: "lesson" | "assignment" | "quiz" | "file" | "video";
-  completed: boolean;
-  dueDate?: string;
-  duration?: string;
-}
-
-const modules: Module[] = [
-  {
-    id: "1",
-    title: "Module 1: Fuel and Combustion",
-    published: true,
-    items: [
-      { id: "1-1", title: "Rocket Fuel Fundamentals", type: "lesson", completed: true, duration: "15 min" },
-      { id: "1-2", title: "Combustion Processes", type: "lesson", completed: true, duration: "20 min" },
-      { id: "1-3", title: "Combustion Instability", type: "video", completed: false, duration: "12 min" },
-      { id: "1-4", title: "Module 1 Quiz", type: "quiz", completed: false, dueDate: "Dec 24" },
-    ],
-  },
-  {
-    id: "2",
-    title: "Module 2: Nozzle Design",
-    published: true,
-    items: [
-      { id: "2-1", title: "Nozzle Design Basics", type: "lesson", completed: false, duration: "25 min" },
-      { id: "2-2", title: "Nozzle Performance Analysis", type: "lesson", completed: false, duration: "30 min" },
-      { id: "2-3", title: "Design Assignment", type: "assignment", completed: false, dueDate: "Dec 28" },
-    ],
-  },
-  {
-    id: "3",
-    title: "Module 3: Propulsion Systems",
-    published: false,
-    items: [
-      { id: "3-1", title: "Solid Propulsion", type: "lesson", completed: false, duration: "20 min" },
-      { id: "3-2", title: "Liquid Propulsion", type: "lesson", completed: false, duration: "22 min" },
-      { id: "3-3", title: "Hybrid Systems", type: "lesson", completed: false, duration: "18 min" },
-    ],
-  },
-];
-
-const upcomingDeadlines = [
-  { title: "Module 1 Quiz", type: "quiz", dueDate: "Dec 24, 2024", dueTime: "11:59 PM" },
-  { title: "Design Assignment", type: "assignment", dueDate: "Dec 28, 2024", dueTime: "11:59 PM" },
-  { title: "Midterm Exam", type: "exam", dueDate: "Jan 5, 2025", dueTime: "10:00 AM" },
-];
-
-const getItemIcon = (type: string) => {
+// Map backend item types to frontend display types
+const mapItemType = (type: ModuleItemType): "lesson" | "assignment" | "quiz" | "file" | "video" => {
   switch (type) {
-    case "quiz":
+    case "VIDEO":
+      return "video";
+    case "QUIZ":
+      return "quiz";
+    case "ASSIGNMENT":
+      return "assignment";
+    case "DOC":
+    case "LINK":
+      return "lesson";
+    default:
+      return "lesson";
+  }
+};
+
+const getItemIcon = (type: ModuleItemType) => {
+  switch (type) {
+    case "QUIZ":
       return HelpCircle;
-    case "assignment":
+    case "ASSIGNMENT":
       return FileText;
-    case "video":
+    case "VIDEO":
       return Video;
     default:
       return BookOpen;
   }
 };
 
-const getItemColor = (type: string) => {
+const getItemColor = (type: ModuleItemType) => {
   switch (type) {
-    case "quiz":
+    case "QUIZ":
       return "text-warning";
-    case "assignment":
+    case "ASSIGNMENT":
       return "text-primary";
-    case "video":
+    case "VIDEO":
       return "text-success";
     default:
       return "text-muted-foreground";
@@ -105,8 +71,40 @@ const getItemColor = (type: string) => {
 };
 
 const CourseHome = () => {
-  const [expandedModules, setExpandedModules] = useState<string[]>(["1", "2"]);
+  const { courseId } = useParams<{ courseId: string }>();
+  const [modules, setModules] = useState<Module[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const isFaculty = true;
+
+  useEffect(() => {
+    const fetchModules = async () => {
+      if (!courseId) return;
+      
+      try {
+        setLoading(true);
+        const response = await getModules(courseId);
+        // Sort modules by position
+        const sortedModules = [...response.modules].sort((a, b) => a.position - b.position);
+        setModules(sortedModules);
+        // Expand first module by default
+        if (sortedModules.length > 0) {
+          setExpandedModules([sortedModules[0].moduleId]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch modules:", error);
+        toast({
+          title: "Error",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchModules();
+  }, [courseId]);
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) =>
@@ -116,12 +114,36 @@ const CourseHome = () => {
     );
   };
 
-  const totalItems = modules.reduce((acc, m) => acc + m.items.length, 0);
-  const completedItems = modules.reduce(
-    (acc, m) => acc + m.items.filter((i) => i.completed).length,
-    0
-  );
-  const progressPercent = Math.round((completedItems / totalItems) * 100);
+  // Calculate upcoming deadlines from module items
+  const upcomingDeadlines = modules
+    .flatMap((module) =>
+      module.items
+        .filter((item) => item.dueDate && item.published && (item.type === "QUIZ" || item.type === "ASSIGNMENT"))
+        .map((item) => ({
+          title: item.title,
+          type: item.type === "QUIZ" ? "quiz" : "assignment",
+          dueDate: item.dueDate ? format(parseISO(item.dueDate), "MMM d, yyyy") : "",
+          dueTime: item.dueDate ? format(parseISO(item.dueDate), "h:mm a") : "",
+        }))
+    )
+    .sort((a, b) => {
+      if (!a.dueDate || !b.dueDate) return 0;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    })
+    .slice(0, 3);
+
+  const totalItems = modules.reduce((acc, m) => acc + m.items.filter(i => i.published).length, 0);
+  // Since we don't have completion tracking in backend, we'll show 0 for now
+  const completedItems = 0;
+  const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="flex min-h-full bg-background items-center justify-center">
+        <p className="text-muted-foreground">Loading modules...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-full bg-background">
@@ -240,7 +262,7 @@ const CourseHome = () => {
               <Button variant="outline" size="sm" onClick={() => setExpandedModules([])}>
                 Collapse All
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setExpandedModules(modules.map(m => m.id))}>
+              <Button variant="outline" size="sm" onClick={() => setExpandedModules(modules.map(m => m.moduleId))}>
                 Expand All
               </Button>
             </div>
@@ -248,23 +270,29 @@ const CourseHome = () => {
 
           <div className="space-y-3">
             {modules.map((module, moduleIndex) => {
-              const isExpanded = expandedModules.includes(module.id);
-              const moduleCompleted = module.items.filter((i) => i.completed).length;
-              const moduleTotal = module.items.length;
-              const moduleProgress = Math.round((moduleCompleted / moduleTotal) * 100);
+              const isExpanded = expandedModules.includes(module.moduleId);
+              // Only count published items
+              const publishedItems = module.items.filter((i) => i.published);
+              const moduleTotal = publishedItems.length;
+              // Since we don't track completion in backend, show 0 for now
+              const moduleCompleted = 0;
+              const moduleProgress = moduleTotal > 0 ? Math.round((moduleCompleted / moduleTotal) * 100) : 0;
 
+              // Check if module has any published items
+              const hasPublishedItems = module.items.some((i) => i.published);
+              
               return (
                 <Card 
-                  key={module.id} 
+                  key={module.moduleId} 
                   className={cn(
                     "overflow-hidden transition-all duration-200",
-                    !module.published && "opacity-60"
+                    !hasPublishedItems && "opacity-60"
                   )}
                   style={{ animationDelay: `${moduleIndex * 50}ms` }}
                 >
                   {/* Module Header */}
                   <button
-                    onClick={() => toggleModule(module.id)}
+                    onClick={() => toggleModule(module.moduleId)}
                     className="w-full flex items-center justify-between p-5 hover:bg-muted/30 transition-colors text-left"
                   >
                     <div className="flex items-center gap-4">
@@ -284,7 +312,7 @@ const CourseHome = () => {
                         <h3 className="font-medium text-foreground">{module.title}</h3>
                         <div className="flex items-center gap-3 mt-1">
                           <span className="text-xs text-muted-foreground">
-                            {moduleCompleted}/{moduleTotal} complete
+                            {moduleTotal} items
                           </span>
                           <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div 
@@ -299,65 +327,63 @@ const CourseHome = () => {
                       </div>
                     </div>
                     <Badge
-                      variant={module.published ? "default" : "secondary"}
+                      variant={hasPublishedItems ? "default" : "secondary"}
                       className={cn(
                         "text-xs",
-                        module.published && "bg-success/10 text-success border-success/20 hover:bg-success/20"
+                        hasPublishedItems && "bg-success/10 text-success border-success/20 hover:bg-success/20"
                       )}
                     >
-                      {module.published ? "Published" : "Draft"}
+                      {hasPublishedItems ? "Published" : "Draft"}
                     </Badge>
                   </button>
 
                   {/* Module Items */}
                   {isExpanded && (
                     <div className="border-t border-border bg-muted/10">
-                      {module.items.map((item, index) => {
+                      {module.items
+                        .sort((a, b) => {
+                          // Sort published items first, then by title
+                          if (a.published !== b.published) {
+                            return a.published ? -1 : 1;
+                          }
+                          return a.title.localeCompare(b.title);
+                        })
+                        .map((item, index) => {
                         const ItemIcon = getItemIcon(item.type);
                         const iconColor = getItemColor(item.type);
+                        const displayType = mapItemType(item.type);
                         return (
                           <div
-                            key={item.id}
+                            key={item.itemId}
                             className={cn(
                               "flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors cursor-pointer group",
+                              !item.published && "opacity-60",
                               index !== module.items.length - 1 && "border-b border-border/50"
                             )}
                           >
                             <div className="ml-14 flex items-center gap-4 flex-1">
-                              {item.completed ? (
-                                <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
-                                  <CheckCircle2 className="h-4 w-4 text-success" />
-                                </div>
-                              ) : (
-                                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                                  <Circle className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                              )}
+                              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                                <Circle className="h-4 w-4 text-muted-foreground" />
+                              </div>
                               <div className={cn(
                                 "h-8 w-8 rounded-lg flex items-center justify-center",
-                                item.type === "video" && "bg-success/10",
-                                item.type === "quiz" && "bg-warning/10",
-                                item.type === "assignment" && "bg-primary/10",
-                                item.type === "lesson" && "bg-muted"
+                                displayType === "video" && "bg-success/10",
+                                displayType === "quiz" && "bg-warning/10",
+                                displayType === "assignment" && "bg-primary/10",
+                                displayType === "lesson" && "bg-muted"
                               )}>
                                 <ItemIcon className={cn("h-4 w-4", iconColor)} />
                               </div>
                               <div className="flex-1">
-                                <span className={cn(
-                                  "text-sm font-medium",
-                                  item.completed ? "text-muted-foreground" : "text-foreground"
-                                )}>
+                                <span className="text-sm font-medium text-foreground">
                                   {item.title}
                                 </span>
-                                {item.duration && (
-                                  <p className="text-xs text-muted-foreground mt-0.5">{item.duration}</p>
-                                )}
                               </div>
                             </div>
                             {item.dueDate && (
                               <Badge variant="outline" className="text-xs">
                                 <Clock className="h-3 w-3 mr-1" />
-                                Due {item.dueDate}
+                                Due {format(parseISO(item.dueDate), "MMM d")}
                               </Badge>
                             )}
                             <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -449,7 +475,9 @@ const CourseHome = () => {
                       <BookOpen className="h-4 w-4" />
                       Modules
                     </span>
-                    <span className="font-semibold text-foreground">{modules.length}</span>
+                    <span className="font-semibold text-foreground">
+                      {modules.filter(m => m.items.some(i => i.published)).length}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground flex items-center gap-2">
