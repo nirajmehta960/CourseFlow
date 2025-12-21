@@ -43,6 +43,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { getModules, updateModules, addModule, addModuleItem, Module, ModuleItem, ModuleItemType } from "@/lib/modules-api";
 import { getErrorMessage } from "@/lib/api";
+import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 
 // Map backend types to frontend display types
 const mapItemType = (type: ModuleItemType): "page" | "discussion" | "assignment" | "quiz" | "video" => {
@@ -73,7 +74,7 @@ const CourseModules = () => {
   const [moduleToDelete, setModuleToDelete] = useState<string | null>(null);
   const [addLessonModuleId, setAddLessonModuleId] = useState<string | null>(null);
   const [newLessonTitle, setNewLessonTitle] = useState("");
-  const isFaculty = true;
+  const { isInstructor: isFaculty } = useCoursePermissions();
 
   // Fetch modules on mount
   useEffect(() => {

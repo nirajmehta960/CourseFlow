@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   ChevronDown,
   ChevronRight,
@@ -24,6 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getAssignments, Assignment as ApiAssignment } from "@/lib/assignments-api";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import { format, parseISO, isAfter } from "date-fns";
+import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 
 interface Assignment {
   id: string;
@@ -42,36 +47,39 @@ interface AssignmentGroup {
   assignments: Assignment[];
 }
 
-const assignmentGroups: AssignmentGroup[] = [
-  {
-    id: "upcoming",
-    name: "Upcoming Assignments",
-    assignments: [
-      { id: "1", title: "Case Study Project Final Report", status: "open", dueDate: "Due Dec 7 at 11:59 PM", points: 150 },
-      { id: "2", title: "NoSQL Implementation", status: "open", dueDate: "Due Nov 30 at 11:59 PM", points: 100 },
-      { id: "3", title: "Application in Python or R", status: "open", dueDate: "Due Nov 23 at 11:59 PM", points: 75 },
-    ],
-  },
-  {
-    id: "past",
-    name: "Past Assignments",
-    assignments: [
-      { id: "4", title: "Quiz #5A - Requires Respondus LockDown Browser", status: "closed", dueDate: "Due Dec 2 at 12:42 PM", points: 100, notGraded: true, submittedAt: "Dec 2 at 12:30 PM" },
-      { id: "5", title: "Homework #5 Due on Sunday Nov. 30 at 11:59PM", status: "graded", dueDate: "Due Nov 30 at 11:59 PM", points: 100, score: "99.5/100" },
-      { id: "6", title: "Quiz #5 - Requires Respondus LockDown Browser", status: "graded", dueDate: "Due Nov 25 at 12:32 PM", points: 100, score: "90/100" },
-      { id: "7", title: "Homework #4 Due on Sunday Nov. 16 at 11:59PM", status: "graded", dueDate: "Due Nov 16 at 11:59 PM", points: 100, score: "99/100" },
-      { id: "8", title: "Quiz #4 - Requires Respondus LockDown Browser", status: "graded", dueDate: "Due Nov 13 at 3:41 PM", points: 100, score: "90/100" },
-      { id: "9", title: "Implementation in MySQL", status: "graded", dueDate: "Due Nov 9 at 11:59 PM", points: 100, score: "100/100" },
-      { id: "10", title: "Homework #3 Due on Friday Nov. 7 at 11:59PM", status: "graded", dueDate: "Due Nov 7 at 11:59 PM", points: 100, score: "100/100" },
-    ],
-  },
-];
-
 const CourseAssignments = () => {
+  const { courseId } = useParams<{ courseId: string }>();
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<string[]>(["upcoming", "past"]);
   const [filterStatus, setFilterStatus] = useState("all");
-  const isFaculty = true;
+  const [assignments, setAssignments] = useState<ApiAssignment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { isInstructor: isFaculty } = useCoursePermissions();
+
+  // Fetch assignments on mount
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      if (!courseId) return;
+      
+      try {
+        setLoading(true);
+        const data = await getAssignments(courseId);
+        // Filter only published assignments
+        setAssignments(data.filter(a => a.published));
+      } catch (error) {
+        console.error("Failed to fetch assignments:", error);
+        toast({
+          title: "Error",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssignments();
+  }, [courseId]);
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) =>
@@ -81,7 +89,94 @@ const CourseAssignments = () => {
     );
   };
 
-  const filteredGroups = assignmentGroups.map((group) => ({
+  // Transform API assignments to component format
+  const transformAssignment = (apiAssignment: ApiAssignment): Assignment => {
+    const now = new Date();
+    const dueDate = apiAssignment.dueDate ? parseISO(apiAssignment.dueDate) : null;
+    
+    // Format due date string
+    let dueDateStr = "No due date";
+    if (dueDate) {
+      try {
+        dueDateStr = `Due ${format(dueDate, "MMM d 'at' h:mma")}`;
+      } catch {
+        dueDateStr = "Invalid date";
+      }
+    }
+
+    // For now, all assignments are marked as "open" since we don't have submission status
+    // This will be enhanced when we add submission endpoints
+    return {
+      id: apiAssignment.id,
+      title: apiAssignment.title,
+      status: "open",
+      dueDate: dueDateStr,
+      points: apiAssignment.points,
+    };
+  };
+
+  // Group assignments into upcoming and past
+  const groupedAssignments: AssignmentGroup[] = (() => {
+    const now = new Date();
+    const transformed = assignments.map(transformAssignment);
+    
+    const upcoming: Assignment[] = [];
+    const past: Assignment[] = [];
+    
+    transformed.forEach((assignment) => {
+      const apiAssignment = assignments.find(a => a.id === assignment.id);
+      if (!apiAssignment || !apiAssignment.dueDate) {
+        // If no due date, consider it upcoming
+        upcoming.push(assignment);
+        return;
+      }
+      
+      try {
+        const dueDate = parseISO(apiAssignment.dueDate);
+        if (isAfter(dueDate, now)) {
+          upcoming.push(assignment);
+        } else {
+          past.push(assignment);
+        }
+      } catch {
+        // If date parsing fails, consider it upcoming
+        upcoming.push(assignment);
+      }
+    });
+
+    return [
+      {
+        id: "upcoming",
+        name: "Upcoming Assignments",
+        assignments: upcoming.sort((a, b) => {
+          const aDate = assignments.find(x => x.id === a.id)?.dueDate;
+          const bDate = assignments.find(x => x.id === b.id)?.dueDate;
+          if (!aDate || !bDate) return 0;
+          try {
+            return parseISO(aDate).getTime() - parseISO(bDate).getTime();
+          } catch {
+            return 0;
+          }
+        }),
+      },
+      {
+        id: "past",
+        name: "Past Assignments",
+        assignments: past.sort((a, b) => {
+          const aDate = assignments.find(x => x.id === a.id)?.dueDate;
+          const bDate = assignments.find(x => x.id === b.id)?.dueDate;
+          if (!aDate || !bDate) return 0;
+          try {
+            return parseISO(bDate).getTime() - parseISO(aDate).getTime();
+          } catch {
+            return 0;
+          }
+        }),
+      },
+    ];
+  })();
+
+  const filteredGroups = groupedAssignments.map((group) => ({
     ...group,
     assignments: group.assignments.filter((a) => {
       const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase());
@@ -90,9 +185,9 @@ const CourseAssignments = () => {
     }),
   }));
 
-  const totalAssignments = assignmentGroups.reduce((acc, g) => acc + g.assignments.length, 0);
-  const gradedAssignments = assignmentGroups.reduce((acc, g) => acc + g.assignments.filter(a => a.status === "graded").length, 0);
-  const pendingAssignments = assignmentGroups.reduce((acc, g) => acc + g.assignments.filter(a => a.status === "open").length, 0);
+  const totalAssignments = groupedAssignments.reduce((acc, g) => acc + g.assignments.length, 0);
+  const gradedAssignments = groupedAssignments.reduce((acc, g) => acc + g.assignments.filter(a => a.status === "graded").length, 0);
+  const pendingAssignments = groupedAssignments.reduce((acc, g) => acc + g.assignments.filter(a => a.status === "open").length, 0);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -130,6 +225,16 @@ const CourseAssignments = () => {
     return null;
   };
 
+  if (loading) {
+    return (
+      <div className="p-8 max-w-5xl">
+        <div className="flex items-center justify-center py-16">
+          <p className="text-muted-foreground">Loading assignments...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8 max-w-5xl">
       {/* Header */}
@@ -139,8 +244,8 @@ const CourseAssignments = () => {
             <h1 className="text-2xl font-display font-semibold text-foreground">Assignments</h1>
             <p className="text-muted-foreground mt-1">Track and submit your course assignments</p>
           </div>
-          {isFaculty && (
-            <Link to={`/courses/1/assignments/new`}>
+          {isFaculty && courseId && (
+            <Link to={`/courses/${courseId}/assignments/new`}>
               <Button className="gap-2">
                 <Plus className="h-4 w-4" />
                 New Assignment
@@ -254,7 +359,7 @@ const CourseAssignments = () => {
                   {group.assignments.map((assignment, index) => (
                     <Link
                       key={assignment.id}
-                      to={`/courses/1/assignments/${assignment.id}`}
+                      to={`/courses/${courseId}/assignments/${assignment.id}`}
                     >
                       <Card 
                         className={cn(

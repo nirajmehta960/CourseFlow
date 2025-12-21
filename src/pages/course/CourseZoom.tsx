@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 
 const meetings = [
   {
@@ -116,7 +117,7 @@ const pastRecordings = [
 ];
 
 const CourseZoom = () => {
-  const isFaculty = true;
+  const { isInstructor: isFaculty } = useCoursePermissions();
 
   const getInitials = (name: string) => {
     return name

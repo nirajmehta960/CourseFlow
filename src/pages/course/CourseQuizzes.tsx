@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 
 interface Quiz {
   id: string;
@@ -125,7 +126,7 @@ const quizzes: Quiz[] = [
 
 const CourseQuizzes = () => {
   const { courseId } = useParams();
-  const isFaculty = true;
+  const { isInstructor: isFaculty } = useCoursePermissions();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
