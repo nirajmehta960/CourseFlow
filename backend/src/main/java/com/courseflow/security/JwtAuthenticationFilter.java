@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -98,20 +100,53 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
     
     /**
-     * Create a refresh token cookie.
+     * Create a refresh token cookie using ResponseCookie for better cross-origin support.
+     * Sets SameSite=None for cross-origin requests (localhost:8080 -> localhost:4000).
      */
+    public static void setRefreshTokenCookie(HttpServletResponse response, String token) {
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, token)
+                .httpOnly(true)
+                .secure(false) // Set to true in production with HTTPS
+                .path("/")
+                .maxAge(7 * 24 * 60 * 60) // 7 days in seconds
+                .sameSite("Lax") // Use Lax for same-site (localhost) or None for cross-origin
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+    
+    /**
+     * Create a refresh token cookie (legacy method for backward compatibility).
+     * @deprecated Use setRefreshTokenCookie instead
+     */
+    @Deprecated
     public static Cookie createRefreshTokenCookie(String token) {
         Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE_NAME, token);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false); // Set to true in production with HTTPS
+        cookie.setSecure(false);
         cookie.setPath("/");
-        cookie.setMaxAge(7 * 24 * 60 * 60); // 7 days in seconds
+        cookie.setMaxAge(7 * 24 * 60 * 60);
         return cookie;
     }
     
     /**
-     * Create a cookie to delete the refresh token.
+     * Delete the refresh token cookie.
      */
+    public static void deleteRefreshTokenCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE_NAME, "")
+                .httpOnly(true)
+                .secure(false)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+    
+    /**
+     * Create a cookie to delete the refresh token (legacy method for backward compatibility).
+     * @deprecated Use deleteRefreshTokenCookie instead
+     */
+    @Deprecated
     public static Cookie deleteRefreshTokenCookie() {
         Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE_NAME, null);
         cookie.setHttpOnly(true);

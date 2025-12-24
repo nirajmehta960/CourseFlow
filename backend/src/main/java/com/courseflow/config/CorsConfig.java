@@ -36,6 +36,7 @@ public class CorsConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         
         // Parse allowed origins
+        // When credentials are enabled, use setAllowedOrigins with exact origins (no wildcards)
         List<String> origins = Arrays.asList(allowedOrigins.split(","));
         configuration.setAllowedOrigins(origins);
         
