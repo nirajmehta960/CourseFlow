@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,10 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getMyGradebook, GradeItem as ApiGradeItem } from "@/lib/grades-api";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import { format, parseISO } from "date-fns";
 
 interface GradeItem {
   id: string;
@@ -44,34 +49,70 @@ interface GradeItem {
   percentage?: number;
 }
 
-const gradeItems: GradeItem[] = [
-  { id: "1", name: "Assignment 1: Introduction", category: "ASSIGNMENTS", dueDate: "Sep 17 by 11:59 PM", submittedDate: "Sep 17 at 12:41 PM", status: "graded", score: "98.71", maxScore: 100, percentage: 98.71 },
-  { id: "2", name: "Assignment 2: Data Modeling", category: "ASSIGNMENTS", dueDate: "Oct 1 by 11:59 PM", submittedDate: "Oct 1 at 2:57 PM", status: "graded", score: "100", maxScore: 100, percentage: 100 },
-  { id: "3", name: "Quiz 1: Fundamentals", category: "QUIZZES", dueDate: "Oct 1 by 11:59 PM", submittedDate: "Sep 23 at 2:06 PM", status: "graded", score: "29", maxScore: 29, percentage: 100 },
-  { id: "4", name: "Quiz 2: Advanced Concepts", category: "QUIZZES", dueDate: "Oct 11 by 11:59 PM", submittedDate: "Sep 29 at 12:25 PM", status: "graded", score: "22", maxScore: 23, percentage: 95.65 },
-  { id: "5", name: "Quiz 3: Implementation", category: "QUIZZES", dueDate: "Oct 11 by 11:59 PM", submittedDate: "Oct 6 at 1:17 PM", status: "graded", score: "32", maxScore: 32, percentage: 100 },
-  { id: "6", name: "Assignment 3: Database Design", category: "ASSIGNMENTS", dueDate: "Oct 15 by 11:59 PM", submittedDate: "Oct 15 at 3:05 PM", status: "graded", score: "100", maxScore: 100, percentage: 100 },
-  { id: "7", name: "Quiz 4: SQL Queries", category: "QUIZZES", dueDate: "Oct 15 by 11:59 PM", submittedDate: "Oct 13 at 4:04 PM", status: "graded", score: "17", maxScore: 17, percentage: 100 },
-  { id: "8", name: "Quiz 5: Optimization", category: "QUIZZES", dueDate: "Oct 22 by 11:59 PM", submittedDate: "Oct 21 at 4:41 PM", status: "graded", score: "28", maxScore: 31, percentage: 90.32 },
-  { id: "9", name: "Midterm Exam", category: "EXAMS", dueDate: "Oct 30 by 11:59 PM", submittedDate: "Oct 24 at 2:20 PM", status: "graded", score: "100", maxScore: 100, percentage: 100 },
-  { id: "10", name: "Final Project", category: "PROJECT", dueDate: "Dec 15 by 11:59 PM", submittedDate: null, status: "pending", score: null, maxScore: 200 },
-];
-
 const categoryWeights = [
   { category: "ASSIGNMENTS", weight: 40, color: "bg-primary" },
   { category: "QUIZZES", weight: 10, color: "bg-warning" },
-  { category: "EXAMS", weight: 20, color: "bg-success" },
-  { category: "PROJECT", weight: 30, color: "bg-secondary" },
 ];
 
 const CourseGrades = () => {
+  const { courseId } = useParams<{ courseId: string }>();
   const [arrangeBy, setArrangeBy] = useState("due-date");
+  const [gradeItems, setGradeItems] = useState<GradeItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState({ earned: 0, possible: 0, percent: 0 });
 
-  // Calculate grades
-  const gradedItems = gradeItems.filter(item => item.status === "graded");
-  const totalEarned = gradedItems.reduce((acc, item) => acc + (parseFloat(item.score || "0")), 0);
-  const totalPossible = gradedItems.reduce((acc, item) => acc + item.maxScore, 0);
-  const overallPercentage = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100 * 10) / 10 : 0;
+  useEffect(() => {
+    const fetchGradebook = async () => {
+      if (!courseId) return;
+      
+      try {
+        setLoading(true);
+        const gradebook = await getMyGradebook(courseId);
+        
+        // Map API grade items to component format
+        const mappedItems: GradeItem[] = gradebook.items.map((item: ApiGradeItem) => {
+          const category = item.type === "ASSIGNMENT" ? "ASSIGNMENTS" : "QUIZZES";
+          let status: "graded" | "submitted" | "pending" | "late" = "pending";
+          
+          if (item.status === "GRADED") {
+            status = "graded";
+          } else if (item.status === "SUBMITTED") {
+            status = "submitted";
+          }
+          
+          const percentage = item.score !== null && item.points !== null && item.points > 0
+            ? Math.round((item.score / item.points) * 100 * 100) / 100
+            : undefined;
+          
+          return {
+            id: item.itemId,
+            name: item.title,
+            category,
+            dueDate: "", // Due dates not in gradebook, would need to fetch from assignments/quizzes
+            submittedDate: item.gradedAt ? format(parseISO(item.gradedAt), "MMM d 'at' h:mm a") : null,
+            status,
+            score: item.score !== null ? item.score.toString() : null,
+            maxScore: item.points || 0,
+            percentage,
+          };
+        });
+        
+        setGradeItems(mappedItems);
+        setTotal(gradebook.total);
+      } catch (error) {
+        console.error("Failed to fetch gradebook:", error);
+        toast({
+          title: "Error",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGradebook();
+  }, [courseId]);
 
   const getLetterGrade = (percentage: number) => {
     if (percentage >= 93) return "A";
@@ -105,6 +146,20 @@ const CourseGrades = () => {
     const found = categoryWeights.find(c => c.category === category);
     return found?.color || "bg-muted";
   };
+
+  // Use totals from API
+  const overallPercentage = total.percent;
+  const totalEarned = total.earned;
+  const totalPossible = total.possible;
+  const gradedItems = gradeItems.filter(item => item.status === "graded");
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-[400px]">
+        <p className="text-muted-foreground">Loading grades...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">

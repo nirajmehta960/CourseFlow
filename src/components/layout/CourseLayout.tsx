@@ -2,20 +2,42 @@ import { Outlet, useParams, Link } from "react-router-dom";
 import CourseNavbar from "./CourseNavbar";
 import { Menu, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-
-// Mock course data - would come from API
-const mockCourses: Record<string, { name: string; code: string }> = {
-  "RS101": { name: "Rocket Propulsion", code: "RS101" },
-  "CS201": { name: "Web Application Development", code: "CS201" },
-  "CH301": { name: "Inorganic Chemistry", code: "CH301" },
-  "PH401": { name: "Physical Chemistry", code: "PH401" },
-};
+import { useState, useEffect } from "react";
+import { getCourseById, Course } from "@/lib/courses-api";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
 
 const CourseLayout = () => {
   const { courseId } = useParams();
   const [showNav, setShowNav] = useState(true);
-  const course = mockCourses[courseId || ""] || { name: "Course", code: courseId };
+  const [course, setCourse] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCourse = async () => {
+      if (!courseId) return;
+      
+      try {
+        setLoading(true);
+        const data = await getCourseById(courseId);
+        setCourse(data);
+      } catch (error) {
+        console.error("Failed to fetch course:", error);
+        toast({
+          title: "Error",
+          description: getErrorMessage(error),
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourse();
+  }, [courseId]);
+
+  const courseName = course?.title || "Course";
+  const courseCode = course?.code || courseId || "";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -34,7 +56,7 @@ const CourseLayout = () => {
             Courses
           </Link>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          <span className="text-primary font-semibold">{course.name}</span>
+          <span className="text-primary font-semibold">{loading ? "Loading..." : courseName}</span>
         </div>
       </header>
 

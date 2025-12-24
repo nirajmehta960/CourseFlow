@@ -11,9 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { signUp } from "@/lib/auth-api";
+import { getErrorMessage } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -22,11 +27,52 @@ const SignUp = () => {
     role: "",
   });
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock sign up - navigate to dashboard
-    navigate("/dashboard");
+    
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.role) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      // Map frontend role to backend role
+      const roleMap: Record<string, "STUDENT" | "INSTRUCTOR" | "ADMIN"> = {
+        student: "STUDENT",
+        faculty: "INSTRUCTOR",
+        ta: "STUDENT", // TAs are students in the backend
+      };
+      
+      await signUp({
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        password: formData.password,
+        role: roleMap[formData.role] || "STUDENT",
+      });
+      
+      await refreshUser(); // Refresh user context
+      toast({
+        title: "Success",
+        description: "Account created successfully",
+      });
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Sign up error:", error);
+      toast({
+        title: "Error",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -137,8 +183,8 @@ const SignUp = () => {
           </p>
         </div>
 
-        <Button type="submit" className="w-full" size="lg">
-          Create account
+        <Button type="submit" className="w-full" size="lg" disabled={loading}>
+          {loading ? "Creating account..." : "Create account"}
         </Button>
       </form>
 
