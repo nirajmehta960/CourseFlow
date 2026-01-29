@@ -50,11 +50,12 @@ coverage/
 *.tmp
 *.temp
 
-# Deployment documentation (keep README.md, DEPLOYMENT.md, and CICD.md)
+# Deployment documentation (keep README.md, DEPLOYMENT.md, CICD.md, and AWS_S3_SETUP.md)
 *.md
 !README.md
 !DEPLOYMENT.md
 !CICD.md
+!AWS_S3_SETUP.md
 
 # Secrets
 *.pem

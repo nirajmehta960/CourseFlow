@@ -12,14 +12,14 @@ CourseFlow is a full-featured LMS that brings together students, instructors, an
 
 ### Core Functionality
 - **Course Management** - Create, organize, and manage courses with rich content
-- **Assignments & Submissions** - Streamlined assignment workflow with file uploads
-- **Interactive Quizzes** - Build quizzes with multiple question types and auto-grading
-- **Gradebook** - Comprehensive grading system with grade overrides and analytics
+- **Gradebook (Optimized)** - High-performance grading system using batch processing and in-memory O(1) lookups.
+- **Assignments & Submissions** - Streamlined workflow with AWS S3 cloud storage integration.
 - **Course Modules** - Organize content into structured modules with drag-and-drop
 - **Discussions** - Threaded discussions for course collaboration
 - **Inbox** - Built-in messaging system for course communication
 - **Calendar** - Integrated calendar for assignments, quizzes, and events
 - **Notifications** - Real-time notifications for important updates
+- **Automated CI/CD** - Continuous Integration and Deployment via GitHub Actions
 
 ### Security & Access
 - JWT-based authentication with refresh tokens
@@ -57,9 +57,9 @@ CourseFlow is a full-featured LMS that brings together students, instructors, an
 
 ### Infrastructure
 - MongoDB Atlas ready
-- Docker support
-- Vercel/Render deployment configs
-- Environment-based configuration
+- AWS S3 Integration for file storage
+- GitHub Actions CI/CD pipeline (GHCR + EC2)
+- Docker & Docker Compose support
 
 ---
 
@@ -213,11 +213,14 @@ node create_json_files.js  # Generate seed data
 
 ---
 
-### AWS EC2 (Recommended)
-We have a comprehensive guide for deploying to AWS Free Tier (EC2) using Docker.
-**[Read the Deployment Guide](DEPLOYMENT.md)**
+### Deployment & DevOps
+Detailed guides for different deployment scenarios:
 
-### Other Options
+- **[CI/CD with GitHub Actions](CICD.md)** - **Recommended**. Automated deployment to AWS EC2.
+- **[Manual AWS EC2 Deployment](DEPLOYMENT.md)** - Manual steps for setting up and running on AWS.
+- **[AWS S3 Setup Guide](AWS_S3_SETUP.md)** - How to configure cloud storage for uploads.
+
+### Other Hosting Options
 - **Backend on Render**: Use `render.yaml` for one-click deployment
 - **Frontend on Vercel**: Connect GitHub repo for automatic deployments
 - **Frontend on Netlify**: Configure build command: `npm run build`

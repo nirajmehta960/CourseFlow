@@ -70,96 +70,38 @@ We use Amazon EC2 t4g.small (ARM-based) because it is:
 
 ---
 
-## Phase 2: Deploying the App
+---
 
-### 1. Build & Push Images (Local)
-Run the manual commands below on your computer.
-Replace `your_username` with your actual Docker Hub username.
+## Phase 2: Deployment
 
-**Manual Commands:**
+There are two ways to deploy: **Automated (Recommended)** and **Manual**.
+
+### Option A: Automated via GitHub Actions (Recommended)
+This is the modern way to deploy. Every time you push to the `main` branch, GitHub will automatically build your images and update your server.
+
+**[Follow the CI/CD Guide (CICD.md)](CICD.md)**
+
+### Option B: Manual Deployment
+Use this only if you don't want to set up GitHub Actions.
+
+#### 1. Build & Push Images (Local)
+Run these on your computer. Replace `<username>` with your Docker Hub username.
 ```bash
-# Login to Docker Hub
-docker login
-
-# Build Independent Images (ARM64)
-docker build -t <your_username>/courseflow-backend:latest ./backend
-docker build -t <your_username>/courseflow-frontend:latest ./frontend
-
-# Push to Docker Hub
-docker push <your_username>/courseflow-backend:latest
-docker push <your_username>/courseflow-frontend:latest
+docker build -t <username>/courseflow-backend:latest ./backend
+docker build -t <username>/courseflow-frontend:latest ./frontend
+docker push <username>/courseflow-backend:latest
+docker push <username>/courseflow-frontend:latest
 ```
 
-### 2. Configure & Run (Server)
-1.  Connect to your server again:
-    ```bash
-    ssh -i "courseflow-key.pem" ubuntu@<YOUR_EC2_PUBLIC_IP>
-    ```
-2.  Create the configuration file:
-    ```bash
-    nano docker-compose.yml
-    ```
-3.  Content for docker-compose.yml:
-    (Replace placeholders with your real values)
-
-```yaml
-services:
-  backend:
-    image: <your_username>/courseflow-backend:latest
-    container_name: courseflow-backend
-    ports:
-      - "4000:4000"
-    environment:
-      - SERVER_PORT=4000
-      - SPRING_PROFILES_ACTIVE=prod
-      # REPLACE WITH YOUR REAL CONNECTION STRING
-      - MONGODB_URI=mongodb+srv://...
-      - JWT_SECRET=PutAnyLongRandomSecretKeyHere!!!
-      - JAVA_TOOL_OPTIONS=-Xmx512m
-    restart: unless-stopped
-
-  frontend:
-    image: <your_username>/courseflow-frontend:latest
-    container_name: courseflow-frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
+#### 2. Run (Server)
+SSH into your server and create a `docker-compose.yml` file. Then run:
+```bash
+docker-compose up -d
 ```
-
-4.  Start the application:
-    ```bash
-    docker-compose up -d
-    ```
-
-Visit `http://<YOUR_EC2_PUBLIC_IP>` to see your app.
 
 ---
 
-## How to Update (After Code Changes)
+## Post-Deployment: AWS S3 & Environment
+After deploying, ensure your application has the correct environment variables (Database URL, S3 Keys, etc.).
 
-When you fix a bug or add a feature, follow these steps to update the live site:
-
-### Step 1: Push New Code (Local)
-Run the build commands again:
-```bash
-# Re-build
-docker build -t <your_username>/courseflow-backend:latest ./backend
-docker build -t <your_username>/courseflow-frontend:latest ./frontend
-
-# Re-push
-docker push <your_username>/courseflow-backend:latest
-docker push <your_username>/courseflow-frontend:latest
-```
-
-### Step 2: Pull New Code (Server)
-SSH into your server and run:
-```bash
-# Download the updates
-docker-compose pull
-
-# Restart containers with new code
-docker-compose up -d
-```
-Your changes will be live immediately.
+**[Follow the AWS S3 Setup Guide (AWS_S3_SETUP.md)](AWS_S3_SETUP.md)**
