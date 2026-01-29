@@ -18,7 +18,7 @@ CourseFlow is a full-featured LMS that brings together students, instructors, an
 - **Discussions** - Threaded discussions for course collaboration
 - **Inbox** - Built-in messaging system for course communication
 - **Calendar** - Integrated calendar for assignments, quizzes, and events
-- **Intelligent Notifications** - Dual-feed notification system (Top-bar for urgent messages/grades, Dashboard for academic updates)
+- **Notifications** - Real-time notifications for important updates
 - **Automated CI/CD** - Continuous Integration and Deployment via GitHub Actions
 
 ### Security & Access
@@ -175,7 +175,6 @@ CourseFlow/
 │   │       ├── inbox/       # Messaging
 │   │       ├── modules/    # Course modules
 │   │       └── ...
-│   └── Database/            # Database seed scripts
 │
 └── frontend/                # React application
     ├── src/
@@ -215,12 +214,6 @@ npm install                # Install dependencies
 npm run dev                # Development server
 npm run build              # Production build
 npm run lint               # Lint code
-```
-
-### Database Seeding
-```bash
-cd backend/Database
-node create_json_files.js  # Generate seed data
 ```
 
 ---
