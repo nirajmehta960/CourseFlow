@@ -102,5 +102,6 @@ jobs:
             docker tag ${REGISTRY}/${REPO_LOWER}/frontend:latest courseflow-frontend
 
             # Restart containers with the new images
-            docker-compose down
+            docker-compose down || true
+            docker rm -f courseflow-backend courseflow-frontend || true
             docker-compose up -d
