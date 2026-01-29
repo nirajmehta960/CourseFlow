@@ -30,7 +30,7 @@ import {
   getSubmissions,
   submitAssignment,
   gradeSubmission,
-  uploadFile,
+  uploadFileToS3,
   Assignment,
   Submission,
   SubmissionRequest,
@@ -114,9 +114,6 @@ const AssignmentDetailNew = () => {
           const updatedSelection = submissionsData.find(s => s.id === selectedSubmission.id);
           if (updatedSelection) {
             setSelectedSubmission(updatedSelection);
-            // Update form fields only if we just loaded this (not if user is typing)
-            // But actually, we usually want to sync with DB on refresh.
-            // For now, let's sync.
             setPointsAwarded(updatedSelection.grade?.pointsAwarded);
             setFeedback(updatedSelection.grade?.feedback || "");
             return;
@@ -158,28 +155,22 @@ const AssignmentDetailNew = () => {
       return;
     }
 
-    // Convert files to base64
-    for (const file of files) {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = event.target?.result as string;
-        try {
-          const response = await uploadFile({
-            fileName: file.name,
-            base64Data: base64,
-          });
-          setUploadedFiles(prev => [...prev, response.url]);
-          setFileInputs(prev => [...prev, file]);
-        } catch (error) {
-          console.error("Failed to upload file:", error);
-          toast({
-            title: "Upload failed",
-            description: getErrorMessage(error),
-            variant: "destructive",
-          });
-        }
-      };
-      reader.readAsDataURL(file);
+    setSubmitting(true);
+    try {
+      for (const file of files) {
+        const response = await uploadFileToS3(file);
+        setUploadedFiles(prev => [...prev, response.url]);
+        setFileInputs(prev => [...prev, file]);
+      }
+    } catch (error) {
+      console.error("Failed to upload file:", error);
+      toast({
+        title: "Upload failed",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 

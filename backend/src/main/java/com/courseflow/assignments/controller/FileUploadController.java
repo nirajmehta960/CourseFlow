@@ -66,7 +66,38 @@ public class FileUploadController {
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.error("UPLOAD_FAILED", "Failed to upload file: " + e.getMessage(), null));
         }
+    }
 
+    @PostMapping("/presign")
+    @Operation(summary = "Generate pre-signed URL", description = "Generate a pre-signed URL for direct S3 upload.")
+    public ResponseEntity<ApiResponse<PresignedUrlResponse>> getPresignedUrl(
+            @RequestBody PresignedUrlRequest request) {
+
+        // Validate content type
+        String contentType = request.getContentType();
+        if (contentType == null || (!contentType.equals("application/pdf") &&
+                !contentType.equals("image/png") &&
+                !contentType.equals("image/jpeg") &&
+                !contentType.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("INVALID_TYPE", "Only PDF, PNG, JPG, and DOCX are allowed", null));
+        }
+
+        String key = "uploads/" + java.util.UUID.randomUUID() + "-" + request.getFileName();
+        String uploadUrl = fileStorageService.generatePresignedUrl(key, contentType);
+
+        // Construct the final public URL (assuming it's public after upload)
+        // This depends on bucket policy. Usually it's
+        // https://bucket.s3.region.amazonaws.com/key
+        String fileUrl = uploadUrl.split("\\?")[0];
+
+        PresignedUrlResponse response = PresignedUrlResponse.builder()
+                .uploadUrl(uploadUrl)
+                .fileUrl(fileUrl)
+                .key(key)
+                .build();
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Pre-signed URL generated"));
     }
 
     @Data
@@ -86,5 +117,24 @@ public class FileUploadController {
         private String url;
         private String fileName;
         private Long fileSize;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PresignedUrlRequest {
+        private String fileName;
+        private String contentType;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PresignedUrlResponse {
+        private String uploadUrl;
+        private String fileUrl;
+        private String key;
     }
 }

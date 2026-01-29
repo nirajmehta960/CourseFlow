@@ -71,6 +71,17 @@ export interface FileUploadResponse {
   fileSize: number;
 }
 
+export interface PresignedUrlRequest {
+  fileName: string;
+  contentType: string;
+}
+
+export interface PresignedUrlResponse {
+  uploadUrl: string;
+  fileUrl: string;
+  key: string;
+}
+
 /**
  * Get all assignments for a course
  */
@@ -210,7 +221,54 @@ export const gradeSubmission = async (
 };
 
 /**
- * Upload a file (base64 for now)
+ * Get a pre-signed URL for direct S3 upload
+ */
+export const getPresignedUrl = async (data: PresignedUrlRequest): Promise<PresignedUrlResponse> => {
+  const response = await apiFetch<PresignedUrlResponse>(`/files/presign`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+  if (!response.data) {
+    throw new Error(getApiThrowMessage(response, 'Failed to prepare upload. Please try again.'));
+  }
+
+  return response.data;
+};
+
+/**
+ * Upload a file directly to S3 using a pre-signed URL
+ */
+export const uploadFileToS3 = async (file: File): Promise<FileUploadResponse> => {
+  // 1. Get pre-signed URL
+  const { uploadUrl, fileUrl } = await getPresignedUrl({
+    fileName: file.name,
+    contentType: file.type || 'application/octet-stream',
+  });
+
+  // 2. Upload directly to S3
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type || 'application/octet-stream',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload file to S3.');
+  }
+
+  return {
+    url: fileUrl,
+    fileName: file.name,
+    fileSize: file.size,
+  };
+};
+
+/**
+ * Legacy: Upload a file (base64)
+ * @deprecated Use uploadFileToS3 instead
  */
 export const uploadFile = async (data: FileUploadRequest): Promise<FileUploadResponse> => {
   const response = await apiFetch<FileUploadResponse>(`/files/upload`, {

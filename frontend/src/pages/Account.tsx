@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateProfile, UserInfo } from "@/lib/auth-api";
-import { uploadFile } from "@/lib/api";
+import { uploadFileToS3 } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 const Account = () => {
@@ -122,43 +122,35 @@ const Account = () => {
       return;
     }
 
+    setIsLoading(true);
     try {
-      // Convert to base64
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
+      // Upload file directly to S3
+      const uploadResponse = await uploadFileToS3(file);
 
-        setIsLoading(true);
-        try {
-          // Upload file
-          const uploadResponse = await uploadFile(base64String, file.name);
+      // Allow immediate preview
+      const newAvatarUrl = uploadResponse.url;
+      setFormData(prev => ({ ...prev, avatarUrl: newAvatarUrl }));
 
-          // Allow immediate preview
-          const newAvatarUrl = uploadResponse.url;
-          setFormData(prev => ({ ...prev, avatarUrl: newAvatarUrl }));
+      // Save immediately
+      await updateProfile(user.id, { avatarUrl: newAvatarUrl });
+      await refreshUser();
 
-          // Save immediately
-          await updateProfile(user.id, { avatarUrl: newAvatarUrl });
-          await refreshUser();
-
-          toast({
-            title: "Avatar updated",
-            description: "Your profile picture has been updated.",
-          });
-        } catch (error: any) {
-          toast({
-            title: "Upload failed",
-            description: error.message || "Failed to upload image",
-            variant: "destructive",
-          });
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error(error);
+      toast({
+        title: "Avatar updated",
+        description: "Your profile picture has been updated.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 

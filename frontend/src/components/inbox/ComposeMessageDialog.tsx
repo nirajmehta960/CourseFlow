@@ -37,7 +37,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Course, getCoursePeople } from "@/lib/courses-api";
 import { createConversation, sendMessage, Attachment } from "@/lib/inbox-api";
-import { uploadFile } from "@/lib/assignments-api";
+import { uploadFileToS3 } from "@/lib/assignments-api";
 
 interface ComposeMessageDialogProps {
     open: boolean;
@@ -136,33 +136,17 @@ export function ComposeMessageDialog({
         setIsUploading(true);
         try {
             for (const file of files) {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                await new Promise<void>((resolve, reject) => {
-                    reader.onload = async (event) => {
-                        const base64 = event.target?.result as string;
-                        try {
-                            const response = await uploadFile({
-                                fileName: file.name,
-                                base64Data: base64,
-                            });
+                const response = await uploadFileToS3(file);
 
-                            const newAttachment: Attachment = {
-                                id: crypto.randomUUID(),
-                                fileName: response.fileName,
-                                url: response.url,
-                                contentType: file.type,
-                                size: response.fileSize
-                            };
+                const newAttachment: Attachment = {
+                    id: crypto.randomUUID(),
+                    fileName: response.fileName,
+                    url: response.url,
+                    contentType: file.type,
+                    size: response.fileSize
+                };
 
-                            setAttachments(prev => [...prev, newAttachment]);
-                            resolve();
-                        } catch (error) {
-                            reject(error);
-                        }
-                    };
-                    reader.onerror = (error) => reject(error);
-                });
+                setAttachments(prev => [...prev, newAttachment]);
             }
         } catch (error) {
             console.error("Failed to upload file:", error);

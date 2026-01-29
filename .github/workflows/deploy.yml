@@ -123,11 +123,38 @@ jobs:
             docker pull ${REGISTRY}/${REPO_LOWER}/backend:latest
             docker pull ${REGISTRY}/${REPO_LOWER}/frontend:latest
 
-            # Tag the GHCR images to match what docker-compose expects with :latest
+            # Backup current images to :stable tag for rollback
+            docker tag courseflow-backend:latest courseflow-backend:stable || true
+            docker tag courseflow-frontend:latest courseflow-frontend:stable || true
+
+            # Tag the GHCR images as :latest for docker-compose
             docker tag ${REGISTRY}/${REPO_LOWER}/backend:latest courseflow-backend:latest
             docker tag ${REGISTRY}/${REPO_LOWER}/frontend:latest courseflow-frontend:latest
 
-            # Restart containers with the new images
-            docker-compose down || true
-            docker rm -f courseflow-backend courseflow-frontend || true
-            docker-compose up -d --force-recreate
+            # Deploy using up --remove-orphans (no down = less downtime)
+            docker-compose up -d --remove-orphans
+
+            # Health Check Loop
+            echo "Verifying deployment health..."
+            HEALTHY=false
+            for i in {1..12}; do
+              # Check if all services in the compose file are healthy
+              # Note: requires docker-compose with healthchecks defined
+              if [[ $(docker-compose ps --format json | grep -c '"Health":"healthy"') -eq 2 ]]; then
+                echo "Deployment is healthy!"
+                HEALTHY=true
+                break
+              fi
+              echo "Waiting for healthy status (attempt $i/12)..."
+              sleep 5
+            done
+
+            if [ "$HEALTHY" = false ]; then
+              echo "Deployment failed health check! Rolling back to :stable..."
+              docker tag courseflow-backend:stable courseflow-backend:latest
+              docker tag courseflow-frontend:stable courseflow-frontend:latest
+              docker-compose up -d --force-recreate
+              exit 1
+            fi
+
+            echo "Deployment successful."

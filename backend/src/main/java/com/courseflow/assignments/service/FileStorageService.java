@@ -19,9 +19,9 @@ public interface FileStorageService {
     String uploadFile(String fileName, byte[] fileData, String contentType) throws IOException;
 
     /**
-     * Delete a file by its URL.
-     * 
-     * @param fileUrl The URL of the file to delete
+     * Generate a pre-signed URL for direct upload to S3.
      */
+    String generatePresignedUrl(String key, String contentType);
+
     void deleteFile(String fileUrl);
 }

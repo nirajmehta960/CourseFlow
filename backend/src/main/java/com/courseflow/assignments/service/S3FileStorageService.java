@@ -36,6 +36,17 @@ public class S3FileStorageService implements FileStorageService {
     }
 
     @Override
+    public String generatePresignedUrl(String key, String contentType) {
+        try {
+            // Generate a pre-signed URL valid for 15 minutes
+            return s3Template.createSignedPutURL(bucketName, key, java.time.Duration.ofMinutes(15)).toString();
+        } catch (Exception e) {
+            log.error("Failed to generate pre-signed URL for key: {}", key, e);
+            throw new RuntimeException("Failed to generate pre-signed URL", e);
+        }
+    }
+
+    @Override
     public void deleteFile(String fileUrl) {
         // Simple extraction of key from URL - robustness improved needed for production
         try {
