@@ -1,6 +1,6 @@
 services:
   backend:
-    image: courseflow-backend
+    image: courseflow-backend:latest
     container_name: courseflow-backend
     ports:
       - "4000:4000"
@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: courseflow-frontend
+    image: courseflow-frontend:latest
     container_name: courseflow-frontend
     ports:
       - "80:80"
