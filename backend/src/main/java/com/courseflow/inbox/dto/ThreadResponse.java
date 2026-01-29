@@ -17,18 +17,19 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ThreadResponse {
-    
+
     private String id;
     private String courseId;
     private List<String> participantIds;
+    private List<String> participantNames;
     private Instant lastMessageAt;
     private String title;
-    
+
     /**
      * Whether this thread has unread messages for the current user.
      */
     private Boolean hasUnread;
-    
+
     /**
      * Preview of the last message in the thread.
      */

@@ -16,9 +16,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CoursePeopleResponse {
-    
+
     private List<PersonInfo> people;
-    
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -28,8 +28,8 @@ public class CoursePeopleResponse {
         private String userId;
         private String name;
         private String email;
+        private String profileImageUrl;
         private Enrollment.CourseRole courseRole;
         private Enrollment.EnrollmentStatus status;
     }
 }
-

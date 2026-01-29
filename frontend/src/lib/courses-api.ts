@@ -111,6 +111,7 @@ export interface CoursePeopleResponse {
     userId: string;
     name: string;
     email: string;
+    profileImageUrl?: string;
     courseRole: 'STUDENT' | 'TA' | 'INSTRUCTOR';
     status: 'ACTIVE' | 'INVITED' | 'DROPPED';
   }[];

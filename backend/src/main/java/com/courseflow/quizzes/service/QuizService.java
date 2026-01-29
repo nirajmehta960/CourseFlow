@@ -447,7 +447,8 @@ public class QuizService {
                     Notification.NotificationType.GRADE_POSTED,
                     "Quiz Graded: " + quiz.getTitle(),
                     "Your quiz has been automatically graded. Score: " + gradeResult.getScore() + " / " + totalPoints,
-                    "/courses/" + courseId + "/quizzes/" + quizId);
+                    "/courses/" + courseId + "/quizzes/" + quizId,
+                    courseId);
         }
 
         return mapToAttemptResponse(attempt);
@@ -650,7 +651,8 @@ public class QuizService {
                         (a, b) -> a // In case of duplicates, keep first
                 ));
 
-        // Check each question — all types (MCQ, MULTI_SELECT, TRUE_FALSE, SHORT_ANSWER) are auto-graded
+        // Check each question — all types (MCQ, MULTI_SELECT, TRUE_FALSE, SHORT_ANSWER)
+        // are auto-graded
         for (Question question : questions) {
             String studentAnswer = answerMap.get(question.getId());
             if (studentAnswer == null || studentAnswer.trim().isEmpty()) {
@@ -682,12 +684,14 @@ public class QuizService {
                         java.util.Set<String> selectedSet = new java.util.HashSet<>();
                         for (String s : studentAnswer.split(",")) {
                             String t = s.trim();
-                            if (!t.isEmpty()) selectedSet.add(t);
+                            if (!t.isEmpty())
+                                selectedSet.add(t);
                         }
                         java.util.Set<String> correctSet = new java.util.HashSet<>();
                         for (String s : correct.split(",")) {
                             String t = s.trim();
-                            if (!t.isEmpty()) correctSet.add(t);
+                            if (!t.isEmpty())
+                                correctSet.add(t);
                         }
                         isCorrect = selectedSet.equals(correctSet);
                     } catch (Exception e) {
@@ -701,7 +705,8 @@ public class QuizService {
                     break;
 
                 case SHORT_ANSWER: {
-                    // Fill-in-the-blank: trim + case-insensitive; also match numeric equivalence (e.g. "4" vs "4.0")
+                    // Fill-in-the-blank: trim + case-insensitive; also match numeric equivalence
+                    // (e.g. "4" vs "4.0")
                     String cs = correct.trim();
                     String ss = studentAnswer.trim();
                     if (cs.equalsIgnoreCase(ss)) {
@@ -822,12 +827,14 @@ public class QuizService {
                         java.util.Set<String> selectedSet = new java.util.HashSet<>();
                         for (String s : studentAnswer.split(",")) {
                             String t = s.trim();
-                            if (!t.isEmpty()) selectedSet.add(t);
+                            if (!t.isEmpty())
+                                selectedSet.add(t);
                         }
                         java.util.Set<String> correctSet = new java.util.HashSet<>();
                         for (String s : correct.split(",")) {
                             String t = s.trim();
-                            if (!t.isEmpty()) correctSet.add(t);
+                            if (!t.isEmpty())
+                                correctSet.add(t);
                         }
                         isCorrect = selectedSet.equals(correctSet);
                     } catch (Exception e) {

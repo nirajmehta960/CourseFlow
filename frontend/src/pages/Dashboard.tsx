@@ -138,13 +138,15 @@ const Dashboard = () => {
       // Merge and standardize items
       const combinedItems: DashboardItem[] = [];
 
-      // Add Notifications
+      // Add Notifications (filtered to exclude messages and grades)
       notificationsData.forEach(n => {
-        combinedItems.push({
-          kind: 'notification',
-          data: n,
-          date: parseISO(n.createdAt || new Date().toISOString())
-        });
+        if (n.type !== 'INBOX_MESSAGE' && n.type !== 'GRADE_POSTED') {
+          combinedItems.push({
+            kind: 'notification',
+            data: n,
+            date: parseISO(n.createdAt || new Date().toISOString())
+          });
+        }
       });
 
       // Add Calendar Events
@@ -288,7 +290,7 @@ const Dashboard = () => {
                     const isNotif = item.kind === 'notification';
                     const data = item.data;
                     const courseId = isNotif
-                      ? (data as Notification).link?.match(/\/courses\/([^/]+)/)?.[1] || ""
+                      ? (data as Notification).courseId || (data as Notification).link?.match(/\/courses\/([^/]+)/)?.[1] || ""
                       : (data as CalendarEvent).courseId;
 
                     const course = courses.get(courseId);
@@ -320,7 +322,7 @@ const Dashboard = () => {
                             <span className="line-clamp-2">
                               {courseCode}
                               <br />
-                              {courseName.split(" ").slice(0, 3).join(" ").toUpperCase()}
+                              {(courseName || "Course").split(" ").slice(0, 3).join(" ").toUpperCase()}
                             </span>
                           </div>
                         </div>
@@ -346,17 +348,28 @@ const Dashboard = () => {
                               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                                 {isNotif
                                   ? (data as Notification).body
-                                  : isFuture(item.date) ? `Due ${format(item.date, "h:mm a")}` : `Due ${format(item.date, "h:mm a")}`
+                                  : (() => {
+                                    try {
+                                      return `Due ${format(item.date, "h:mm a")}`;
+                                    } catch (e) {
+                                      return "Due soon";
+                                    }
+                                  })()
                                 }
                               </p>
                               <p className="text-xs text-muted-foreground mt-2">
-                                {isFuture(item.date)
-                                  ? <span className="text-primary font-medium flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    Due {formatDistanceToNow(item.date, { addSuffix: true })}
-                                  </span>
-                                  : formatDistanceToNow(item.date, { addSuffix: true })
-                                }
+                                {(() => {
+                                  try {
+                                    return isFuture(item.date)
+                                      ? <span className="text-primary font-medium flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        Due {formatDistanceToNow(item.date, { addSuffix: true })}
+                                      </span>
+                                      : formatDistanceToNow(item.date, { addSuffix: true });
+                                  } catch (e) {
+                                    return "Recently";
+                                  }
+                                })()}
                               </p>
                             </div>
                           </div>

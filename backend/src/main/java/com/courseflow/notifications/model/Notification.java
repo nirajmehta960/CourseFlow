@@ -23,39 +23,45 @@ import java.time.Instant;
 @Document(collection = "notifications")
 @CompoundIndex(name = "user_created_idx", def = "{'userId': 1, 'createdAt': -1}")
 public class Notification {
-    
+
     @Id
     private String id;
-    
+
     /**
      * ID of the user who should receive this notification.
      */
     @Indexed
     private String userId;
-    
+
     /**
      * Type of notification.
      */
     private NotificationType type;
-    
+
     private String title;
-    
+
     private String body;
-    
+
     /**
-     * Link to the relevant resource (e.g., /courses/{courseId}/assignments/{assignmentId}).
+     * Link to the relevant resource (e.g.,
+     * /courses/{courseId}/assignments/{assignmentId}).
      */
     private String link;
-    
+
+    /**
+     * ID of the course this notification is related to.
+     */
+    private String courseId;
+
     @Builder.Default
     private Boolean isRead = false;
-    
+
     @CreatedDate
     private Instant createdAt;
-    
+
     @LastModifiedDate
     private Instant updatedAt;
-    
+
     /**
      * Notification type enumeration.
      */

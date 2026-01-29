@@ -8,6 +8,7 @@ export interface Conversation {
   id: string;
   courseId?: string;
   participantIds: string[];
+  participantNames?: string[];
   lastMessageAt: string;
   title?: string;
   hasUnread: boolean;
@@ -18,12 +19,22 @@ export interface Message {
   id: string;
   threadId: string;
   senderId: string;
+  senderName?: string;
   body: string;
   createdAt: string;
   readBy: string[];
   starredBy: string[];
   isRead: boolean;
   isStarred: boolean;
+  attachments?: Attachment[];
+}
+
+export interface Attachment {
+  id: string;
+  fileName: string;
+  url: string;
+  contentType: string;
+  size: number;
 }
 
 export interface CreateConversationRequest {
@@ -34,6 +45,7 @@ export interface CreateConversationRequest {
 
 export interface SendMessageRequest {
   body: string;
+  attachments?: Attachment[];
 }
 
 /**
@@ -47,9 +59,9 @@ export const getConversations = async (
   const params = new URLSearchParams({ filter });
   if (search) params.append('search', search);
   if (courseId) params.append('courseId', courseId);
-  
+
   const response = await apiFetch<Conversation[]>(`/inbox?${params.toString()}`);
-  
+
   if (!response.data) {
     throw new Error(getApiThrowMessage(response, 'Failed to load conversations. Please try again.'));
   }
@@ -62,7 +74,7 @@ export const getConversations = async (
  */
 export const getConversation = async (conversationId: string): Promise<Conversation> => {
   const response = await apiFetch<Conversation>(`/inbox/${conversationId}`);
-  
+
   if (!response.data) {
     throw new Error(getApiThrowMessage(response, 'Failed to load conversation. Please try again.'));
   }
@@ -97,7 +109,7 @@ export const createConversation = async (
  */
 export const getMessages = async (conversationId: string): Promise<Message[]> => {
   const response = await apiFetch<Message[]>(`/inbox/${conversationId}/messages`);
-  
+
   if (!response.data) {
     throw new Error(getApiThrowMessage(response, 'Failed to load messages. Please try again.'));
   }
@@ -114,7 +126,10 @@ export const sendMessage = async (
 ): Promise<Message> => {
   const response = await apiFetch<Message>(`/inbox/${conversationId}/messages`, {
     method: 'POST',
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      body: request.body,
+      attachments: request.attachments
+    }),
   });
 
   if (!response.data) {

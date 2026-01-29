@@ -240,6 +240,7 @@ public class CourseService {
                             .userId(user.getId())
                             .name(user.getName())
                             .email(user.getEmail())
+                            .profileImageUrl(user.getAvatarUrl())
                             .courseRole(enrollment.getCourseRole())
                             .status(enrollment.getStatus())
                             .build();

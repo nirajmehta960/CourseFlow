@@ -57,7 +57,13 @@ const NotificationBell = () => {
     try {
       setLoading(true);
       const data = await getNotifications();
-      setNotifications(data);
+      // Filter to only show relevant notifications in the bell
+      const filtered = data.filter(n =>
+        n.type === 'INBOX_MESSAGE' ||
+        n.type === 'GRADE_POSTED' ||
+        n.type === 'NEW_QUIZ'
+      );
+      setNotifications(filtered);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
       toast({
@@ -205,7 +211,13 @@ const NotificationBell = () => {
                         {notification.body}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
-                        {format(parseISO(notification.createdAt), "MMM d, h:mm a")}
+                        {notification.createdAt ? (() => {
+                          try {
+                            return format(parseISO(notification.createdAt), "MMM d, h:mm a");
+                          } catch (e) {
+                            return "";
+                          }
+                        })() : "Recent"}
                       </p>
                     </div>
                   </div>

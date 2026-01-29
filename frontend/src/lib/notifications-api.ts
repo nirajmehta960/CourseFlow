@@ -11,6 +11,7 @@ export interface Notification {
   title: string;
   body: string;
   link: string;
+  courseId?: string;
   isRead: boolean;
   createdAt: string;
 }

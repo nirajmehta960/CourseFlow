@@ -306,7 +306,8 @@ public class DiscussionService {
                         Notification.NotificationType.DISCUSSION_REPLY,
                         "New Reply: " + discussion.getTitle(),
                         currentUser.getId() + " replied to your post in " + discussion.getTitle(),
-                        "/courses/" + courseId + "/discussions/" + discussionId);
+                        "/courses/" + courseId + "/discussions/" + discussionId,
+                        courseId);
             }
         } else {
             // Notify discussion creator if this is a top-level post
@@ -316,7 +317,8 @@ public class DiscussionService {
                         Notification.NotificationType.DISCUSSION_REPLY,
                         "New Reply: " + discussion.getTitle(),
                         currentUser.getId() + " posted in " + discussion.getTitle(),
-                        "/courses/" + courseId + "/discussions/" + discussionId);
+                        "/courses/" + courseId + "/discussions/" + discussionId,
+                        courseId);
             }
         }
 

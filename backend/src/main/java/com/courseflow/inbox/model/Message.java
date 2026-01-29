@@ -25,42 +25,57 @@ import java.util.List;
 @Document(collection = "messages")
 @CompoundIndex(name = "thread_created_idx", def = "{'threadId': 1, 'createdAt': -1}")
 public class Message {
-    
+
     @Id
     private String id;
-    
+
     /**
      * ID of the thread this message belongs to.
      */
     @Indexed
     private String threadId;
-    
+
     /**
      * ID of the user who sent this message.
      */
     @Indexed
     private String senderId;
-    
+
     /**
      * Message body/content.
      */
     private String body;
-    
+
     @CreatedDate
     private Instant createdAt;
-    
+
     @LastModifiedDate
     private Instant updatedAt;
-    
+
     /**
      * Array of user IDs who have read this message.
      */
     @Builder.Default
     private List<String> readBy = new ArrayList<>();
-    
+
     /**
      * Array of user IDs who have starred this message.
      */
     @Builder.Default
     private List<String> starredBy = new ArrayList<>();
+
+    @Builder.Default
+    private List<Attachment> attachments = new ArrayList<>();
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Attachment {
+        private String id;
+        private String fileName;
+        private String url;
+        private String contentType;
+        private Long size;
+    }
 }

@@ -564,7 +564,8 @@ public class AssignmentService {
                     "Grade Posted: " + assignment.getTitle(),
                     "Your submission has been graded. Score: " + request.getPointsAwarded() + " / "
                             + assignment.getPoints(),
-                    "/courses/" + courseId + "/assignments/" + assignmentId);
+                    "/courses/" + courseId + "/assignments/" + assignmentId,
+                    courseId);
         }
 
         return mapToSubmissionResponse(submission);

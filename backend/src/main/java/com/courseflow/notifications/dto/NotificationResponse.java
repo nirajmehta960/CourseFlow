@@ -15,13 +15,15 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationResponse {
-    
+
     private String id;
     private String userId;
-    private String type; // "NEW_ASSIGNMENT", "NEW_QUIZ", "GRADE_POSTED", "DISCUSSION_REPLY", "INBOX_MESSAGE"
+    private String type; // "NEW_ASSIGNMENT", "NEW_QUIZ", "GRADE_POSTED", "DISCUSSION_REPLY",
+                         // "INBOX_MESSAGE"
     private String title;
     private String body;
     private String link;
+    private String courseId;
     private Boolean isRead;
     private Instant createdAt;
 }

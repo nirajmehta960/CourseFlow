@@ -14,6 +14,7 @@ import com.courseflow.inbox.repository.ThreadRepository;
 import com.courseflow.notifications.model.Notification;
 import com.courseflow.notifications.service.NotificationService;
 import com.courseflow.users.model.User;
+import com.courseflow.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class InboxService {
     private final AuthService authService;
     private final EnrollmentService enrollmentService;
     private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     /**
      * Get threads for the current user with optional filters.
@@ -49,69 +51,73 @@ public class InboxService {
      * @return List of thread responses
      */
     public List<ThreadResponse> getThreads(String filter, String search, String courseId) {
-        User currentUser = authService.getCurrentUser();
-        String userId = currentUser.getId();
+        try {
+            User currentUser = authService.getCurrentUser();
+            String userId = currentUser.getId();
 
-        // Get threads for the user
-        List<Thread> threads;
-        if (courseId != null && !courseId.isBlank()) {
-            // Verify enrollment if filtering by course
-            enrollmentService.verifyEnrollment(courseId, userId);
-            threads = threadRepository.findByCourseIdAndParticipantIdsContainingOrderByLastMessageAtDesc(
-                    courseId, userId);
-        } else {
-            // Get all threads (course and direct messages)
-            threads = threadRepository.findByParticipantIdsContainingOrderByLastMessageAtDesc(userId);
-        }
+            // Get threads for the user
+            List<Thread> threads;
+            if (courseId != null && !courseId.isBlank()) {
+                // Verify enrollment if filtering by course
+                enrollmentService.verifyEnrollment(courseId, userId);
+                threads = threadRepository.findByCourseIdAndParticipantIdsContainingOrderByLastMessageAtDesc(
+                        courseId, userId);
+            } else {
+                // Get all threads (course and direct messages)
+                threads = threadRepository.findByParticipantIdsContainingOrderByLastMessageAtDesc(userId);
+            }
 
-        // Apply filters
-        List<ThreadResponse> responses = threads.stream()
-                .map(thread -> mapToThreadResponse(thread, userId))
-                .collect(Collectors.toList());
-
-        // Filter by unread/starred if specified
-        if ("unread".equals(filter)) {
-            responses = responses.stream()
-                    .filter(ThreadResponse::getHasUnread)
+            // Map to response
+            List<ThreadResponse> responses = threads.stream()
+                    .map(thread -> mapToThreadResponse(thread, userId))
                     .collect(Collectors.toList());
-        } else if ("starred".equals(filter)) {
-            // Get all messages for threads and check if any are starred
-            responses = responses.stream()
-                    .filter(thread -> {
-                        List<Message> starredMessages = messageRepository
-                                .findByThreadIdAndStarredByContainingOrderByCreatedAtDesc(
-                                        thread.getId(), userId);
-                        return !starredMessages.isEmpty();
-                    })
-                    .collect(Collectors.toList());
+
+            // Filter by unread/starred if specified
+            if ("unread".equals(filter)) {
+                responses = responses.stream()
+                        .filter(ThreadResponse::getHasUnread)
+                        .collect(Collectors.toList());
+            } else if ("starred".equals(filter)) {
+                // Get all messages for threads and check if any are starred
+                responses = responses.stream()
+                        .filter(thread -> {
+                            List<Message> starredMessages = messageRepository
+                                    .findByThreadIdAndStarredByContainingOrderByCreatedAtDesc(
+                                            thread.getId(), userId);
+                            return !starredMessages.isEmpty();
+                        })
+                        .collect(Collectors.toList());
+            }
+
+            // Apply search filter if provided
+            if (StringUtils.hasText(search)) {
+                String searchLower = search.toLowerCase();
+                responses = responses.stream()
+                        .filter(thread -> {
+                            // Search in title
+                            if (thread.getTitle() != null &&
+                                    thread.getTitle().toLowerCase().contains(searchLower)) {
+                                return true;
+                            }
+                            // Search in last message preview
+                            if (thread.getLastMessagePreview() != null &&
+                                    thread.getLastMessagePreview().toLowerCase().contains(searchLower)) {
+                                return true;
+                            }
+                            return false;
+                        })
+                        .collect(Collectors.toList());
+            }
+
+            // Sort by last message time (newest first)
+            responses.sort(Comparator.comparing(ThreadResponse::getLastMessageAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())));
+
+            return responses;
+        } catch (Exception e) {
+            log.error("Error fetching threads: ", e);
+            throw e;
         }
-
-        // Apply search filter if provided
-        if (StringUtils.hasText(search)) {
-            String searchLower = search.toLowerCase();
-            responses = responses.stream()
-                    .filter(thread -> {
-                        // Search in title
-                        if (thread.getTitle() != null &&
-                                thread.getTitle().toLowerCase().contains(searchLower)) {
-                            return true;
-                        }
-                        // Search in last message preview
-                        if (thread.getLastMessagePreview() != null &&
-                                thread.getLastMessagePreview().toLowerCase().contains(searchLower)) {
-                            return true;
-                        }
-                        return false;
-                    })
-                    .collect(Collectors.toList());
-        }
-
-        // Sort by last message time (newest first)
-        responses.sort(Comparator.comparing(
-                ThreadResponse::getLastMessageAt,
-                Comparator.nullsLast(Comparator.reverseOrder())));
-
-        return responses;
     }
 
     /**
@@ -234,6 +240,7 @@ public class InboxService {
                 .body(request.getBody())
                 .readBy(new ArrayList<>())
                 .starredBy(new ArrayList<>())
+                .attachments(request.getAttachments() != null ? request.getAttachments() : new ArrayList<>())
                 .build();
 
         // Add sender to readBy (they've seen their own message)
@@ -254,7 +261,8 @@ public class InboxService {
                         Notification.NotificationType.INBOX_MESSAGE,
                         "New Message: " + thread.getTitle(),
                         "You have a new message in " + thread.getTitle(),
-                        "/inbox?thread=" + threadId);
+                        "/inbox?thread=" + threadId,
+                        thread.getCourseId());
             }
         }
 
@@ -352,12 +360,30 @@ public class InboxService {
                 preview = preview.substring(0, 97) + "...";
             }
             lastMessagePreview = preview;
+            lastMessagePreview = preview;
+        }
+
+        // Fetch participant names
+        List<String> participantNames = new ArrayList<>();
+        List<String> otherParticipantIds = thread.getParticipantIds().stream()
+                .filter(id -> !id.equals(currentUserId))
+                .collect(Collectors.toList());
+
+        if (!otherParticipantIds.isEmpty()) {
+            List<User> users = (List<User>) userRepository.findAllById(otherParticipantIds);
+            participantNames = users.stream()
+                    .map(User::getName)
+                    .collect(Collectors.toList());
+        } else {
+            // If it's just me (note to self), use "Me" or my name
+            participantNames.add("Me");
         }
 
         return ThreadResponse.builder()
                 .id(thread.getId())
                 .courseId(thread.getCourseId())
                 .participantIds(new ArrayList<>(thread.getParticipantIds()))
+                .participantNames(participantNames)
                 .lastMessageAt(thread.getLastMessageAt())
                 .title(thread.getTitle())
                 .hasUnread(hasUnread)
@@ -372,16 +398,28 @@ public class InboxService {
         boolean isRead = message.getReadBy().contains(currentUserId);
         boolean isStarred = message.getStarredBy().contains(currentUserId);
 
+        String senderName = "Unknown User";
+        try {
+            User sender = userRepository.findById(message.getSenderId()).orElse(null);
+            if (sender != null) {
+                senderName = sender.getName();
+            }
+        } catch (Exception e) {
+            log.error("Error fetching sender name: ", e);
+        }
+
         return MessageResponse.builder()
                 .id(message.getId())
                 .threadId(message.getThreadId())
                 .senderId(message.getSenderId())
+                .senderName(senderName)
                 .body(message.getBody())
                 .createdAt(message.getCreatedAt())
                 .readBy(new ArrayList<>(message.getReadBy()))
                 .starredBy(new ArrayList<>(message.getStarredBy()))
                 .isRead(isRead)
                 .isStarred(isStarred)
+                .attachments(message.getAttachments() != null ? message.getAttachments() : new ArrayList<>())
                 .build();
     }
 }

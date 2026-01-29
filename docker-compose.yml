@@ -1,5 +1,6 @@
 services:
   backend:
+    build: ./backend
     image: courseflow-backend:latest
     container_name: courseflow-backend
     ports:
@@ -12,6 +13,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    build: ./frontend
     image: courseflow-frontend:latest
     container_name: courseflow-frontend
     ports:

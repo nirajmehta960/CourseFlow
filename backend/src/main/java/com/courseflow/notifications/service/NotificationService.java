@@ -105,7 +105,7 @@ public class NotificationService {
      * @param link   The link to the relevant resource
      */
     public void createNotification(String userId, Notification.NotificationType type, String title, String body,
-            String link) {
+            String link, String courseId) {
         Notification notification = Notification.builder()
                 .id(UUID.randomUUID().toString())
                 .userId(userId)
@@ -113,6 +113,7 @@ public class NotificationService {
                 .title(title)
                 .body(body)
                 .link(link)
+                .courseId(courseId)
                 .isRead(false)
                 .createdAt(java.time.Instant.now())
                 .build();
@@ -141,7 +142,7 @@ public class NotificationService {
                 .collect(Collectors.toList());
 
         for (String studentId : studentIds) {
-            createNotification(studentId, type, title, body, link);
+            createNotification(studentId, type, title, body, link, courseId);
         }
 
         log.info("Created {} notifications for course {} (type: {})", studentIds.size(), courseId, type);
@@ -157,8 +158,9 @@ public class NotificationService {
      * @param body   The notification body
      * @param link   The link to the relevant resource
      */
-    public void notifyUser(String userId, Notification.NotificationType type, String title, String body, String link) {
-        createNotification(userId, type, title, body, link);
+    public void notifyUser(String userId, Notification.NotificationType type, String title, String body, String link,
+            String courseId) {
+        createNotification(userId, type, title, body, link, courseId);
     }
 
     /**
@@ -172,6 +174,7 @@ public class NotificationService {
                 .title(notification.getTitle() != null ? notification.getTitle() : "Notification")
                 .body(notification.getBody() != null ? notification.getBody() : "")
                 .link(notification.getLink())
+                .courseId(notification.getCourseId())
                 .isRead(notification.getIsRead() != null ? notification.getIsRead() : false)
                 .createdAt(notification.getCreatedAt())
                 .build();

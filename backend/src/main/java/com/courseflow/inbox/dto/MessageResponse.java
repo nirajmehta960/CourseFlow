@@ -17,22 +17,25 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MessageResponse {
-    
+
     private String id;
     private String threadId;
     private String senderId;
+    private String senderName;
     private String body;
     private Instant createdAt;
     private List<String> readBy;
     private List<String> starredBy;
-    
+
     /**
      * Whether this message has been read by the current user.
      */
     private Boolean isRead;
-    
+
     /**
      * Whether this message is starred by the current user.
      */
     private Boolean isStarred;
+
+    private java.util.List<com.courseflow.inbox.model.Message.Attachment> attachments;
 }

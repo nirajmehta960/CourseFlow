@@ -417,7 +417,7 @@ const CoursePeople = () => {
                   <div className="flex items-start gap-4">
                     <div className="relative">
                       <Avatar className="h-14 w-14 ring-2 ring-background shadow-lg">
-                        <AvatarImage src={undefined} alt={person.name} />
+                        <AvatarImage src={person.profileImageUrl} alt={person.name} />
                         <AvatarFallback className={cn(
                           "text-sm font-medium",
                           person.courseRole === "INSTRUCTOR" && "bg-primary/10 text-primary",

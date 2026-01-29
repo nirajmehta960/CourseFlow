@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import NotificationBell from "@/components/NotificationBell";
 
 const Topbar = () => {
-  const { user, logout } = useAuth();
+  const { user, signout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -31,7 +31,7 @@ const Topbar = () => {
 
   const handleLogout = () => {
     setShowProfileMenu(false);
-    logout();
+    signout();
     navigate("/signin");
   };
 
@@ -45,7 +45,7 @@ const Topbar = () => {
         <div className="flex items-center gap-3">
           {user ? (
             <div className="flex items-center gap-3">
-              {/* <NotificationBell /> removed */}
+              <NotificationBell />
               <div className="relative" ref={menuRef}>
                 <Button
                   variant="ghost"
@@ -53,9 +53,9 @@ const Topbar = () => {
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                   className="h-10 w-10 rounded-full"
                 >
-                  {user.imageUrl ? (
+                  {user.avatarUrl ? (
                     <img
-                      src={user.imageUrl}
+                      src={user.avatarUrl}
                       alt="profile"
                       className="h-10 w-10 rounded-full object-cover"
                     />

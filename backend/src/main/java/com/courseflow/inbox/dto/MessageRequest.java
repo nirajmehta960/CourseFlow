@@ -15,8 +15,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class MessageRequest {
-    
+
     @NotBlank(message = "Message body is required")
     @Size(max = 5000, message = "Message body must be at most 5000 characters")
     private String body;
+
+    private java.util.List<com.courseflow.inbox.model.Message.Attachment> attachments;
 }

@@ -19,13 +19,13 @@ import java.util.List;
  * Controller for inbox endpoints.
  */
 @RestController
-@RequestMapping("/api/inbox")
+@RequestMapping("/inbox")
 @RequiredArgsConstructor
 @Tag(name = "Inbox", description = "Inbox and messaging endpoints")
 public class InboxController {
-    
+
     private final InboxService inboxService;
-    
+
     @GetMapping
     @Operation(summary = "List conversations", description = "Get all conversations for the current user with optional filters (all/unread/starred) and search.")
     public ResponseEntity<ApiResponse<List<ThreadResponse>>> getConversations(
@@ -35,7 +35,7 @@ public class InboxController {
         List<ThreadResponse> threads = inboxService.getThreads(filter, search, courseId);
         return ResponseEntity.ok(ApiResponse.success(threads));
     }
-    
+
     @GetMapping("/{conversationId}")
     @Operation(summary = "Get conversation", description = "Get a conversation by ID with its messages. User must be a participant.")
     public ResponseEntity<ApiResponse<ThreadResponse>> getConversation(
@@ -43,7 +43,7 @@ public class InboxController {
         ThreadResponse thread = inboxService.getThread(conversationId);
         return ResponseEntity.ok(ApiResponse.success(thread));
     }
-    
+
     @PostMapping
     @Operation(summary = "Start conversation", description = "Create a new conversation (course discussion or direct message).")
     public ResponseEntity<ApiResponse<ThreadResponse>> createConversation(
@@ -51,7 +51,7 @@ public class InboxController {
         ThreadResponse thread = inboxService.createThread(request);
         return ResponseEntity.ok(ApiResponse.success(thread, "Conversation created successfully"));
     }
-    
+
     @GetMapping("/{conversationId}/messages")
     @Operation(summary = "Get messages", description = "Get all messages for a conversation. User must be a participant.")
     public ResponseEntity<ApiResponse<List<MessageResponse>>> getMessages(
@@ -59,7 +59,7 @@ public class InboxController {
         List<MessageResponse> messages = inboxService.getMessages(conversationId);
         return ResponseEntity.ok(ApiResponse.success(messages));
     }
-    
+
     @PostMapping("/{conversationId}/messages")
     @Operation(summary = "Send message", description = "Send a message in a conversation. User must be a participant.")
     public ResponseEntity<ApiResponse<MessageResponse>> sendMessage(
@@ -68,7 +68,7 @@ public class InboxController {
         MessageResponse message = inboxService.sendMessage(conversationId, request);
         return ResponseEntity.ok(ApiResponse.success(message, "Message sent successfully"));
     }
-    
+
     @PostMapping("/{conversationId}/read")
     @Operation(summary = "Mark conversation as read", description = "Mark all messages in a conversation as read for the current user.")
     public ResponseEntity<ApiResponse<Void>> markConversationRead(
@@ -76,7 +76,7 @@ public class InboxController {
         inboxService.markThreadRead(conversationId);
         return ResponseEntity.ok(ApiResponse.success(null, "Conversation marked as read"));
     }
-    
+
     @PostMapping("/messages/{messageId}/toggle-star")
     @Operation(summary = "Toggle star", description = "Star or unstar a message.")
     public ResponseEntity<ApiResponse<MessageResponse>> toggleStar(
