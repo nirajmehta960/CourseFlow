@@ -12,7 +12,7 @@ CourseFlow is a full-featured LMS that brings together students, instructors, an
 
 ### Core Functionality
 - **Course Management** - Create, organize, and manage courses with rich content
-- **Gradebook (Optimized)** - High-performance grading system using batch processing and in-memory O(1) lookups.
+- **Gradebook** - High-performance grading system using batch processing and in-memory O(1) lookups.
 - **Assignments & Submissions** - Streamlined workflow with AWS S3 cloud storage integration.
 - **Course Modules** - Organize content into structured modules with drag-and-drop
 - **Discussions** - Threaded discussions for course collaboration
@@ -133,11 +133,23 @@ CourseFlow is a full-featured LMS that brings together students, instructors, an
    ```
    Frontend runs on `http://localhost:5173` (Manual Mode) or `http://localhost:3000` (Docker Mode)
 
-### Environment Variables
+### Quick Reference: Environment Variables
 
 **Backend** (`backend/.env`):
 ```env
+# Database
 MONGODB_URI=mongodb://localhost:27017/CourseFlow
+
+# AWS S3 (Required for file uploads)
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=courseflow-uploads
+
+# Security (Production Only)
+JWT_SECRET=your_long_random_secret_string
+CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
+SPRING_PROFILES_ACTIVE=dev
 ```
 
 **Frontend** (`frontend/.env`):

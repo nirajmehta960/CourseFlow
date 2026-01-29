@@ -101,7 +101,44 @@ docker-compose up -d
 
 ---
 
-## Post-Deployment: AWS S3 & Environment
-After deploying, ensure your application has the correct environment variables (Database URL, S3 Keys, etc.).
+## Post-Deployment: Configure Environment Variables
+2.  SSH into your server:
+    ```bash
+    ssh -i "courseflow-key.pem" ubuntu@<YOUR_EC2_PUBLIC_IP>
+    ```
+
+3.  Create or Edit the `.env` file:
+    ```bash
+    nano ~/CourseFlow/backend/.env
+    ```
+
+4.  Paste the following configuration (Replace values with your actual secrets):
+    ```env
+    # Database
+    MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.mongodb.net/CourseFlow?retryWrites=true&w=majority&appName=CourseFlow
+    
+    # AWS Configuration
+    AWS_ACCESS_KEY_ID=your_access_key
+    AWS_SECRET_ACCESS_KEY=your_secret_key
+    AWS_REGION=us-east-1
+    AWS_S3_BUCKET=courseflow-uploads
+    
+    # Security & Networking
+    CORS_ALLOWED_ORIGINS=http://<YOUR_EC2_PUBLIC_IP>
+    JWT_SECRET=your_long_random_secret_string
+    SPRING_PROFILES_ACTIVE=prod
+    ```
+
+5.  **Save and Exit**: Press `Ctrl+O`, `Enter`, then `Ctrl+X`.
+
+6.  **Apply Changes**:
+    ```bash
+    cd ~/CourseFlow
+    docker-compose down
+    docker-compose up -d
+    ```
+
+## Post-Deployment: AWS S3 & Verification
+After configuring the environment, follow these guides to verify everything is working:
 
 **[Follow the AWS S3 Setup Guide (AWS_S3_SETUP.md)](AWS_S3_SETUP.md)**
