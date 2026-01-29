@@ -78,15 +78,20 @@ jobs:
             echo ${GITHUB_TOKEN} | docker login ghcr.io -u ${GITHUB_ACTOR} --password-stdin
 
             # Navigate to app directory or clone if it doesn't exist
-            if [ ! -d "~/CourseFlow" ]; then
-              cd ~
+            if [ ! -d "$HOME/CourseFlow" ]; then
+              cd "$HOME"
               git clone https://github.com/${REPO_LOWER}.git CourseFlow
             fi
 
-            cd ~/CourseFlow
+            cd "$HOME/CourseFlow"
 
             # Pull latest code
             git pull origin main
+
+            # Ensure .env file exists for docker-compose to satisfy file checks
+            # (User should manually populate this file with real secrets on the server)
+            mkdir -p backend
+            touch backend/.env
 
             # Pull latest images from GHCR
             docker pull ${REGISTRY}/${REPO_LOWER}/backend:latest
