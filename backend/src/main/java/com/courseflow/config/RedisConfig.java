@@ -1,5 +1,9 @@
 package com.courseflow.config;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -44,9 +48,7 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(redisConnectionFactory());
 
-        var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-        objectMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        ObjectMapper objectMapper = createObjectMapper();
         var jsonSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
         template.setKeySerializer(new StringRedisSerializer());
@@ -58,18 +60,7 @@ public class RedisConfig {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
-        objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-        objectMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        // Retain type info for polymorphic deserialization (needed by
-        // GenericJackson2JsonRedisSerializer default)
-        // But GenericJackson2JsonRedisSerializer handles this automatically if we use
-        // the constructor that takes ObjectMapper
-        // However, the simpler constructor
-        // GenericJackson2JsonRedisSerializer(ObjectMapper mapper) is protected or
-        // deprecated in some versions.
-        // Let's use the explicit configuration manually.
-
+        ObjectMapper objectMapper = createObjectMapper();
         var jsonSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
 
         var defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
@@ -89,5 +80,17 @@ public class RedisConfig {
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
+    }
+
+    private ObjectMapper createObjectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        objectMapper.disable(com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        objectMapper.activateDefaultTyping(
+                objectMapper.getPolymorphicTypeValidator(),
+                ObjectMapper.DefaultTyping.NON_FINAL,
+                JsonTypeInfo.As.PROPERTY);
+        return objectMapper;
     }
 }

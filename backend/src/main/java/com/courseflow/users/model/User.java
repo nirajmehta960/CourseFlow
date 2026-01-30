@@ -81,6 +81,7 @@ public class User {
      * Get the primary role (first role in the list, or STUDENT if empty).
      * Useful for backward compatibility and simple role checks.
      */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public UserRole getPrimaryRole() {
         if (roles == null || roles.isEmpty()) {
             return UserRole.STUDENT;
