@@ -41,7 +41,7 @@ import {
   Trash2,
   Edit,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 import { getCoursePeople, enrollByEmail, updateEnrollment, CoursePeopleResponse } from "@/lib/courses-api";
 import { toast } from "@/hooks/use-toast";
@@ -194,14 +194,6 @@ const CoursePeople = () => {
   const students = people.filter(p => p.courseRole === "STUDENT");
   const activeStudents = people.filter(p => p.status === "ACTIVE").length;
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   const getRoleBadge = (role: string) => {
     switch (role) {

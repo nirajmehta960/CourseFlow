@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import Logo from "./Logo";
 import { useAuth } from "@/contexts/AuthContext";
 import NotificationBell from "@/components/NotificationBell";
+import { getInitials } from "@/lib/utils";
 
 const Topbar = () => {
   const { user, signout } = useAuth();
@@ -60,7 +61,9 @@ const Topbar = () => {
                       className="h-10 w-10 rounded-full object-cover"
                     />
                   ) : (
-                    <User className="h-5 w-5" />
+                    <div className="h-full w-full flex items-center justify-center bg-primary text-primary-foreground text-sm font-semibold">
+                      {getInitials(user.name)}
+                    </div>
                   )}
                 </Button>
                 {showProfileMenu && (

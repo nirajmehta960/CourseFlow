@@ -22,6 +22,7 @@ import {
   Trash2,
   Pencil,
 } from "lucide-react";
+import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateProfile, UserInfo } from "@/lib/auth-api";
 import { uploadFileToS3 } from "@/lib/api";
@@ -154,15 +155,6 @@ const Account = () => {
     }
   };
 
-  const getInitials = (name: string) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   if (!user) {
     return <div className="p-8 text-center text-muted-foreground">Loading user data...</div>;

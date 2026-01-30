@@ -2,6 +2,7 @@ package com.courseflow.notifications.service;
 
 import com.courseflow.common.error.ApiException;
 import com.courseflow.enrollments.repository.EnrollmentRepository;
+import com.courseflow.common.service.RealtimeService;
 import com.courseflow.notifications.dto.NotificationResponse;
 import com.courseflow.notifications.model.Notification;
 import com.courseflow.notifications.repository.NotificationRepository;
@@ -23,6 +24,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final RealtimeService realtimeService;
 
     /**
      * Get all notifications for a user.
@@ -120,6 +122,11 @@ public class NotificationService {
 
         notificationRepository.save(notification);
         log.debug("Created notification for user {}: {}", userId, title);
+
+        // Push real-time notification
+        if (userId != null) {
+            realtimeService.sendNotification(userId, mapToResponse(notification));
+        }
     }
 
     /**

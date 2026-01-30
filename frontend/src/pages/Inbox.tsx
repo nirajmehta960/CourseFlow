@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -25,7 +26,7 @@ import {
   ReplyAll,
   MoreVertical
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import {
   getConversations,
   getConversation,
@@ -52,29 +53,57 @@ const Inbox = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [courseFilter, setCourseFilter] = useState<string>("all");
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [courses, setCourses] = useState<Map<string, Course>>(new Map());
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchConversations();
-    fetchCourses();
-  }, [filter, searchQuery, courseFilter]);
-
-  useEffect(() => {
-    if (selectedConversation) {
-      fetchMessages(selectedConversation.id);
+  const { data: conversations = [], isLoading: loadingConversations } = useQuery({
+    queryKey: ['threads', filter, searchQuery, courseFilter],
+    queryFn: async () => {
+      const courseIdParam = courseFilter === "all" ? undefined : courseFilter;
+      return await getConversations(filter, searchQuery || undefined, courseIdParam);
     }
-  }, [selectedConversation]);
+  });
+
+  const { data: messagesRaw = [] } = useQuery({
+    queryKey: ['messages', selectedConversation?.id],
+    queryFn: async () => {
+      if (!selectedConversation?.id) return [];
+      const data = await getMessages(selectedConversation.id);
+      markConversationRead(selectedConversation.id);
+      return data;
+    },
+    enabled: !!selectedConversation?.id,
+  });
+
+  // Dedupe by id and always sort by createdAt ascending (oldest first) so order is correct
+  // after API load, optimistic updates, and WebSocket appends.
+  const messages = useMemo(() => {
+    const seen = new Set<string>();
+    return messagesRaw
+      .filter((m) => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      })
+      .sort((a, b) => {
+        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (tA !== tB) return tA - tB;
+        // same millisecond: stable sort by id
+        return (a.id || "").localeCompare(b.id || "");
+      });
+  }, [messagesRaw]);
 
   useEffect(() => {
-    // Auto-scroll to bottom when messages change
+    fetchCourses();
+  }, []);
+
+  // Scroll to bottom when messages change so latest message is visible
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
@@ -96,73 +125,66 @@ const Inbox = () => {
     }
   };
 
-  const fetchConversations = async () => {
-    try {
-      setLoading(true);
-      // Pass courseFilter if it's not "all"
-      const courseIdParam = courseFilter === "all" ? undefined : courseFilter;
-      const data = await getConversations(filter, searchQuery || undefined, courseIdParam);
-      setConversations(data);
-    } catch (error) {
-      console.error("Failed to fetch conversations:", error);
-      toast({
-        title: "Error",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMessages = async (conversationId: string) => {
-    try {
-      const data = await getMessages(conversationId);
-      setMessages(data);
-
-      // Mark conversation as read
-      await markConversationRead(conversationId);
-
-      // Update conversation in list
-      setConversations((prev) =>
-        prev.map((conv) =>
-          conv.id === conversationId ? { ...conv, hasUnread: false } : conv
-        )
-      );
-    } catch (error) {
-      console.error("Failed to fetch messages:", error);
-      toast({
-        title: "Error",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
-    }
-  };
+  const queryClient = useQueryClient();
 
   const handleSendMessage = async () => {
     if (!selectedConversation || !newMessage.trim()) return;
 
+    setSending(true);
+    const body = newMessage.trim();
+    setNewMessage("");
+
+    // Optimistic update (Momento-style): show message immediately, replace with real on success
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+      id: tempId,
+      threadId: selectedConversation.id,
+      senderId: user?.id ?? "",
+      body,
+      createdAt: new Date().toISOString(),
+      readBy: [],
+      starredBy: [],
+      isRead: true,
+      isStarred: false,
+    };
+    queryClient.setQueryData<Message[]>(['messages', selectedConversation.id], (old) => [...(old ?? []), optimisticMessage]);
+    const previewSnapshot = body.length > 100 ? body.substring(0, 97) + "..." : body;
+    const nowIso = optimisticMessage.createdAt;
+    queryClient.setQueryData<Conversation[]>(['threads', filter, searchQuery, courseFilter], (old) =>
+      old?.map((conv) =>
+        conv.id === selectedConversation.id
+          ? { ...conv, lastMessagePreview: previewSnapshot, lastMessageAt: nowIso, hasUnread: false }
+          : conv
+      ) ?? []
+    );
+    setSelectedConversation((prev) =>
+      prev?.id === selectedConversation.id
+        ? { ...prev, lastMessagePreview: previewSnapshot, lastMessageAt: nowIso, hasUnread: false }
+        : prev
+    );
+
     try {
       setSending(true);
-      const message = await sendMessage(selectedConversation.id, {
-        body: newMessage.trim(),
+      const message = await sendMessage(selectedConversation.id, { body });
+
+      // Replace optimistic message with real one from server (dedupe if WebSocket already added it)
+      const preview = message.body.length > 100 ? message.body.substring(0, 97) + "..." : message.body;
+      queryClient.setQueryData<Message[]>(['messages', selectedConversation.id], (old) => {
+        const list = (old ?? []).filter((m) => !m.id.startsWith("temp-"));
+        const exists = list.some((m) => m.id === message.id);
+        return exists ? list : [...list, message];
       });
-
-      setMessages((prev) => [...prev, message]);
-      setNewMessage("");
-
-      // Update conversation last message
-      setConversations((prev) =>
-        prev.map((conv) =>
+      queryClient.setQueryData<Conversation[]>(['threads', filter, searchQuery, courseFilter], (old) =>
+        old?.map((conv) =>
           conv.id === selectedConversation.id
-            ? {
-              ...conv,
-              lastMessagePreview: message.body ? message.body.substring(0, 100) : "Attachment",
-              lastMessageAt: message.createdAt,
-              hasUnread: false,
-            }
+            ? { ...conv, lastMessagePreview: preview, lastMessageAt: message.createdAt, hasUnread: false }
             : conv
-        )
+        ) ?? []
+      );
+      setSelectedConversation((prev) =>
+        prev?.id === selectedConversation.id
+          ? { ...prev, lastMessagePreview: preview, lastMessageAt: message.createdAt, hasUnread: false }
+          : prev
       );
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -178,10 +200,13 @@ const Inbox = () => {
 
   const handleToggleStar = async (messageId: string) => {
     try {
-      const updatedMessage = await toggleStar(messageId);
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === messageId ? updatedMessage : msg))
-      );
+      await toggleStar(messageId);
+      // Invalidate messages query to reflect the star change
+      // Note: We might want optimistic updates here for better UX, but invalidation is safer for now
+      queryClient.invalidateQueries({ queryKey: ['messages', selectedConversation?.id] });
+      if (filter === 'starred') {
+        queryClient.invalidateQueries({ queryKey: ['threads'] });
+      }
     } catch (error) {
       console.error("Failed to toggle star:", error);
       toast({
@@ -231,15 +256,6 @@ const Inbox = () => {
     return senderId.substring(0, 8) + "...";
   };
 
-  const getInitials = (name?: any): string => {
-    if (!name || typeof name !== 'string') return "U";
-    if (name === "You") return "ME";
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return name.trim().substring(0, 2).toUpperCase();
-  }
 
   const unreadCount = conversations.filter((c) => c.hasUnread).length;
 
@@ -311,7 +327,7 @@ const Inbox = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {loading ? (
+            {loadingConversations ? (
               <div className="p-4 space-y-4">
                 {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full" />)}
               </div>
@@ -384,40 +400,53 @@ const Inbox = () => {
               </div>
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-muted/5">
-                {messages.map((msg) => {
-                  const isMe = msg.senderId === user?.id;
-                  return (
-                    <div key={msg.id} className={cn("flex gap-4 max-w-3xl", isMe ? "ml-auto flex-row-reverse" : "")}>
-                      <div className={cn(
-                        "h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold",
-                        isMe ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground border border-border"
-                      )}>
-                        {getInitials(isMe ? "You" : msg.senderName)}
-                      </div>
-                      <div className={cn("space-y-1 min-w-0", isMe ? "items-end flex flex-col" : "")}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold">{getSenderName(msg.senderId, msg)}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {msg.createdAt ? (() => {
-                              try {
-                                return format(parseISO(msg.createdAt), "MMM d, h:mm a");
-                              } catch (e) {
-                                return "Just now";
-                              }
-                            })() : "Just now"}
-                          </span>
-                        </div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-muted/5 min-h-0 flex flex-col">
+                {messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50">
+                    <MessageSquare className="h-12 w-12 mb-2" />
+                    <p>No messages yet. Start the conversation!</p>
+                  </div>
+                ) : (
+                  messages.map((msg) => {
+                    const isMe = msg.senderId === user?.id;
+                    // Sanitize and filter empty messages
+                    const bodyText = msg.body ? msg.body.trim() : "";
+                    if (!bodyText && (!msg.attachments || msg.attachments.length === 0)) {
+                      return null;
+                    }
+
+                    return (
+                      <div key={msg.id} className={cn("flex gap-4 max-w-3xl", isMe ? "ml-auto flex-row-reverse" : "")}>
                         <div className={cn(
-                          "p-3 rounded-lg text-sm whitespace-pre-wrap break-words",
-                          isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-white border border-border rounded-tl-none shadow-sm"
+                          "h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold",
+                          isMe ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground border border-border"
                         )}>
-                          {msg.body}
+                          {getInitials(isMe ? user?.name : (msg.senderName && msg.senderName !== "Me" && msg.senderName !== "You" ? msg.senderName : msg.senderId))}
+                        </div>
+                        <div className={cn("space-y-1 min-w-0", isMe ? "items-end flex flex-col" : "")}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{getSenderName(msg.senderId, msg)}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {msg.createdAt ? (() => {
+                                try {
+                                  return format(parseISO(msg.createdAt), "MMM d, h:mm a");
+                                } catch (e) {
+                                  return "Just now";
+                                }
+                              })() : "Just now"}
+                            </span>
+                          </div>
+                          <div className={cn(
+                            "p-3 rounded-lg text-sm whitespace-pre-wrap break-words",
+                            isMe ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-white border border-border rounded-tl-none shadow-sm"
+                          )}>
+                            {bodyText}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
                 <div ref={messagesEndRef} />
               </div>
 
@@ -462,11 +491,13 @@ const Inbox = () => {
         onOpenChange={setComposeOpen}
         courses={Array.from(courses.values())}
         onMessageSent={(newId) => {
-          fetchConversations().then(() => {
-            if (newId) {
-              getConversation(newId).then(conv => setSelectedConversation(conv));
-            }
-          });
+          queryClient.invalidateQueries({ queryKey: ['threads'] });
+          if (newId) {
+            // We can't easily wait for the invalidation to finish and return the new conv immediately here
+            // But we can try to find it or fetch it explicitly if needed.
+            // For now, let's just fetch the specific conversation to select it
+            getConversation(newId).then(conv => setSelectedConversation(conv));
+          }
         }}
       />
     </div >

@@ -64,16 +64,16 @@ End-to-end flow from user browser to external services:
 │                                                          │                              │
 └──────────────────────────────────────────────────────────┼──────────────────────────────┘
                                                            │
-                    ┌──────────────────────────────────────┼──────────────────────────────────────┐
-                    │                                      │                                        │
-                    ▼                                      ▼                                        ▼
-         ┌─────────────────────┐              ┌─────────────────────┐              ┌─────────────────────┐
-         │  MongoDB Atlas      │              │  AWS S3              │              │  (Future: Redis,     │
-         │  (Managed MongoDB)   │              │  (File storage for   │              │   WebSockets, etc.)  │
-         │  • CourseFlow DB     │              │   assignment uploads)│              └─────────────────────┘
-         │  • Connection string │              │  • courseflow-uploads│
-         │    in backend/.env   │              │  • IAM / env keys    │
-         └─────────────────────┘              └─────────────────────┘
+                     ┌──────────────────────────────────────┼──────────────────────────────────────┐
+                     │                                      │                                      │
+                     ▼                                      ▼                                      ▼
+          ┌─────────────────────┐              ┌─────────────────────┐              ┌─────────────────────┐
+          │  MongoDB Atlas      │              │  AWS S3              │              │  Redis (Cache/PubSub)│
+          │  (Managed MongoDB)   │              │  (File storage for   │              │  • Port: 6379        │
+          │  • CourseFlow DB     │              │   assignment uploads)│              │  • WebSocket Broker  │
+          │  • Connection string │              │  • courseflow-uploads│              └─────────────────────┘
+          │    in backend/.env   │              │  • IAM / env keys    │
+          └─────────────────────┘              └─────────────────────┘
 ```
 
 **Client (not shown above):** User’s browser loads the SPA from `http://<EC2-IP>/` (or a domain pointing to EC2). All API calls go to the same origin `/api/...`, which Nginx proxies to `http://courseflow-backend:4000/api/...` inside Docker.
@@ -102,15 +102,16 @@ How the app is deployed on a single EC2 instance:
 │  │  │  │  ┌─────────────────────────────────────────────────────────────────────┐  │  │  │
 │  │  │  │  │  Docker Compose                                                     │  │  │  │
 │  │  │  │  │                                                                     │  │  │  │
+│  │  │  │  │  network: courseflow-network (bridge)                                │  │  │  │
 │  │  │  │  │  ┌─────────────────────┐    ┌─────────────────────┐                │  │  │  │
 │  │  │  │  │  │  frontend           │    │  backend             │                │  │  │  │
-│  │  │  │  │  │  image: .../latest  │    │  image: .../latest   │                │  │  │  │
 │  │  │  │  │  │  ports: "80:80"     │    │  ports: "4000:4000"  │                │  │  │  │
-│  │  │  │  │  │  env_file: .env     │    │  env_file: .env      │                │  │  │  │
-│  │  │  │  │  │  restart: unless-   │    │  restart: unless-    │                │  │  │  │
-│  │  │  │  │  │    stopped          │    │    stopped           │                │  │  │  │
+│  │  │  │  │  │  depends_on:        │    │  expose: 4000       │                │  │  │  │
+│  │  │  │  │  │    backend (healthy)│    │  healthcheck:       │                │  │  │  │
+│  │  │  │  │  │  healthcheck: /     │    │    GET /api/health   │                │  │  │  │
+│  │  │  │  │  │  restart: unless-   │    │  restart: unless-   │                │  │  │  │
+│  │  │  │  │  │    stopped          │    │    stopped          │                │  │  │  │
 │  │  │  │  │  └──────────┬──────────┘    └──────────┬──────────┘                │  │  │  │
-│  │  │  │  │               │                         │                           │  │  │  │
 │  │  │  │  │               │  proxy_pass /api/       │                           │  │  │  │
 │  │  │  │  │               └────────────────────────┘                           │  │  │  │
 │  │  │  │  └─────────────────────────────────────────────────────────────────────┘  │  │  │
@@ -125,9 +126,10 @@ How the app is deployed on a single EC2 instance:
 **Deployment details:**
 
 - **EC2**: One instance; recommended Ubuntu 24.04 LTS ARM64 (e.g. t4g.small for free-tier eligibility). Docker and Docker Compose are installed on the host.
-- **Images**: Built by GitHub Actions and stored in **GitHub Container Registry (GHCR)**. On deploy, the workflow SSHs into EC2, pulls `ghcr.io/<org>/<repo>/backend:latest` and `frontend:latest`, re-tags them as `courseflow-backend:latest` and `courseflow-frontend:latest` to match `docker-compose.yml`, then runs `docker-compose up -d --force-recreate`.
+- **Images**: Built by GitHub Actions and stored in **GitHub Container Registry (GHCR)**. On deploy, the workflow SSHs into EC2, pulls images from GHCR, re-tags them as `courseflow-backend:latest` and `courseflow-frontend:latest`, then runs `docker-compose up -d --remove-orphans` (no full down for less downtime). A health-check loop verifies both services become healthy; on failure the workflow rolls back to the previous `:stable` images.
+- **Docker Compose**: Uses a dedicated **bridge network** (`courseflow-network`) so frontend and backend resolve by service name (`courseflow-backend`). Backend has a **healthcheck** (`GET /api/health` via curl every 20s); frontend **depends_on backend** with `condition: service_healthy`, so Nginx only starts after the API is ready. Frontend healthcheck pings `http://localhost/` every 30s.
 - **Nginx (frontend container)**: Listens on port 80; serves static files from `/usr/share/nginx/html` (Vite build output); `location /api/` proxies to `http://courseflow-backend:4000/api/`. So the browser only talks to port 80; `/api` is reverse-proxied to the backend.
-- **Backend container**: Exposes port 4000 to the host (and to the frontend container via Docker network). Reads config from `backend/.env` (MongoDB URI, AWS keys, JWT secret, CORS, etc.).
+- **Backend container**: Exposes port 4000; `expose: 4000` for the network. Reads config from `backend/.env` (MongoDB URI, AWS keys, JWT secret, CORS, etc.). Exposes **`GET /api/health`** (unauthenticated) for Docker and load balancers.
 
 ---
 
@@ -167,8 +169,11 @@ Pipeline runs on **push to `main`**. Two jobs: **build-and-push** (build artifac
 │  │  5. docker pull ghcr.io/.../backend:latest and frontend:latest                      │  │
 │  │  6. docker tag ... backend:latest → courseflow-backend:latest                       │  │
 │  │     docker tag ... frontend:latest → courseflow-frontend:latest                      │  │
-│  │  7. docker-compose down; docker rm -f courseflow-backend courseflow-frontend        │  │
-│  │  8. docker-compose up -d --force-recreate                                           │  │
+│  │  7. Backup current images to :stable (for rollback)                                 │  │
+│  │  8. Tag GHCR images → courseflow-backend:latest, courseflow-frontend:latest         │  │
+│  │  9. docker-compose up -d --remove-orphans (no down = less downtime)                  │  │
+│  │ 10. Health check loop: poll until both services report healthy (up to 12×5s)        │  │
+│  │ 11. If unhealthy: rollback to :stable, force-recreate, exit 1                      │  │
 │  └───────────────────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -203,9 +208,10 @@ Logical layers of the application (independent of deployment):
                                         ▼
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │  API LAYER (Spring Boot)                                                                  │
-│  • Controllers: /auth, /courses, /assignments, /grades, /quizzes, /modules,               │
-│    /discussions, /inbox, /notifications, /calendar, /users, /files                       │
-│  • GlobalExceptionHandler → standardized error JSON                                       │
+│  • Controllers: / (root API info), /health, /auth, /courses, /assignments, /grades,       │
+│    /api/gradebook (overrides), /quizzes, /modules, /discussions, /inbox,                  │
+│    /notifications, /calendar, /users, /files                                               │
+│  • GlobalExceptionHandler → standardized error JSON; /api/health public for healthchecks   │
 │  • JwtAuthenticationFilter, SecurityConfig, CORS                                           │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
                                         │
@@ -281,7 +287,7 @@ Logical layers of the application (independent of deployment):
 | `inbox`      | Internal messaging. |
 | `notifications` | User notifications. |
 | `calendar`   | Calendar events. |
-| `common`     | Security annotations, DTOs, error handling. |
+| `common`     | HealthController (`GET /health`), RootController (API info), security annotations, DTOs, error handling. |
 | `config`     | Security, CORS, MongoDB. |
 
 ### Notable Design Choices
@@ -342,11 +348,11 @@ Logical layers of the application (independent of deployment):
 | Item | Detail |
 |------|--------|
 | **Host** | Amazon EC2 (e.g. Ubuntu 24.04 LTS ARM64, t4g.small). |
-| **Orchestration** | Docker Compose (two services). |
-| **Frontend container** | Nginx Alpine; port 80; serves SPA; proxies `/api/` to backend. |
-| **Backend container** | Eclipse Temurin 21 JRE; port 4000; Spring Boot context `/api`. |
+| **Orchestration** | Docker Compose (two services on bridge network `courseflow-network`). |
+| **Frontend container** | Nginx Alpine; port 80; serves SPA; proxies `/api/` to backend; `depends_on` backend when healthy; healthcheck on `/`. |
+| **Backend container** | Eclipse Temurin 21 JRE; port 4000; Spring Boot context `/api`; healthcheck `GET /api/health`. |
 | **Image registry** | GitHub Container Registry (ghcr.io). |
-| **CI/CD** | GitHub Actions on push to `main`: build → push images → SSH to EC2 → pull, tag, restart. |
+| **CI/CD** | GitHub Actions on push to `main`: build → push to GHCR → SSH to EC2 → pull, tag, `up -d --remove-orphans` → health-check loop → rollback to `:stable` if unhealthy. |
 
 ### Tech Stack Summary
 

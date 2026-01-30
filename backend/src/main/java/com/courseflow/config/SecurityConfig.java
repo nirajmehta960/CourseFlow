@@ -31,81 +31,87 @@ import org.springframework.web.cors.CorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final UserDetailsServiceImpl userDetailsService;
-    private final CorsConfigurationSource corsConfigurationSource;
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
+        private final UserDetailsServiceImpl userDetailsService;
+        private final CorsConfigurationSource corsConfigurationSource;
 
-    @Bean
-    public org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring().requestMatchers(
-                AntPathRequestMatcher.antMatcher("/health"),
-                AntPathRequestMatcher.antMatcher("/api/health"),
-                AntPathRequestMatcher.antMatcher("/error"),
-                AntPathRequestMatcher.antMatcher("/v3/api-docs/**"),
-                AntPathRequestMatcher.antMatcher("/swagger-ui/**"),
-                AntPathRequestMatcher.antMatcher("/swagger-ui.html"));
-    }
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource))
-                .authorizeHttpRequests(auth -> auth
-                        // Permit all OPTIONS requests for CORS preflight
-                        .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.OPTIONS, "/**")).permitAll()
-                        // Public auth endpoints, health checks, and error path
-                        .requestMatchers(
-                                AntPathRequestMatcher.antMatcher("/auth/signup"),
-                                AntPathRequestMatcher.antMatcher("/auth/signin"),
-                                AntPathRequestMatcher.antMatcher("/auth/refresh"),
-                                AntPathRequestMatcher.antMatcher("/auth/signout"),
+        @Bean
+        public org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer webSecurityCustomizer() {
+                return (web) -> web.ignoring().requestMatchers(
                                 AntPathRequestMatcher.antMatcher("/health"),
                                 AntPathRequestMatcher.antMatcher("/api/health"),
-                                AntPathRequestMatcher.antMatcher("/error"))
-                        .permitAll()
-                        // Swagger/OpenAPI documentation endpoints (public access)
-                        .requestMatchers(
-                                AntPathRequestMatcher.antMatcher("/swagger-ui/**"),
-                                AntPathRequestMatcher.antMatcher("/swagger-ui.html"),
+                                AntPathRequestMatcher.antMatcher("/error"),
                                 AntPathRequestMatcher.antMatcher("/v3/api-docs/**"),
-                                AntPathRequestMatcher.antMatcher("/v3/api-docs"),
-                                AntPathRequestMatcher.antMatcher("/swagger-resources/**"),
-                                AntPathRequestMatcher.antMatcher("/webjars/**"),
-                                AntPathRequestMatcher.antMatcher("/swagger-ui/index.html"),
-                                AntPathRequestMatcher.antMatcher("/api-docs/**"))
-                        .permitAll()
-                        // Root API path (for testing)
-                        .requestMatchers(
-                                AntPathRequestMatcher.antMatcher("/"),
-                                AntPathRequestMatcher.antMatcher("/api"),
-                                AntPathRequestMatcher.antMatcher("/api/"))
-                        .permitAll()
-                        // All other endpoints require authentication
-                        .anyRequest().authenticated())
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                                AntPathRequestMatcher.antMatcher("/swagger-ui/**"),
+                                AntPathRequestMatcher.antMatcher("/swagger-ui.html"));
+        }
 
-        return http.build();
-    }
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+                http
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+                                .authorizeHttpRequests(auth -> auth
+                                                // Permit all OPTIONS requests for CORS preflight
+                                                .requestMatchers(AntPathRequestMatcher.antMatcher(HttpMethod.OPTIONS,
+                                                                "/**"))
+                                                .permitAll()
+                                                // Public auth endpoints, health checks, and error path
+                                                .requestMatchers(
+                                                                AntPathRequestMatcher.antMatcher("/auth/signup"),
+                                                                AntPathRequestMatcher.antMatcher("/auth/signin"),
+                                                                AntPathRequestMatcher.antMatcher("/auth/refresh"),
+                                                                AntPathRequestMatcher.antMatcher("/auth/signout"),
+                                                                AntPathRequestMatcher.antMatcher("/health"),
+                                                                AntPathRequestMatcher.antMatcher("/api/health"),
+                                                                AntPathRequestMatcher.antMatcher("/ws/**"),
+                                                                AntPathRequestMatcher.antMatcher("/api/ws/**"),
+                                                                AntPathRequestMatcher.antMatcher("/error"))
+                                                .permitAll()
+                                                // Swagger/OpenAPI documentation endpoints (public access)
+                                                .requestMatchers(
+                                                                AntPathRequestMatcher.antMatcher("/swagger-ui/**"),
+                                                                AntPathRequestMatcher.antMatcher("/swagger-ui.html"),
+                                                                AntPathRequestMatcher.antMatcher("/v3/api-docs/**"),
+                                                                AntPathRequestMatcher.antMatcher("/v3/api-docs"),
+                                                                AntPathRequestMatcher
+                                                                                .antMatcher("/swagger-resources/**"),
+                                                                AntPathRequestMatcher.antMatcher("/webjars/**"),
+                                                                AntPathRequestMatcher
+                                                                                .antMatcher("/swagger-ui/index.html"),
+                                                                AntPathRequestMatcher.antMatcher("/api-docs/**"))
+                                                .permitAll()
+                                                // Root API path (for testing)
+                                                .requestMatchers(
+                                                                AntPathRequestMatcher.antMatcher("/"),
+                                                                AntPathRequestMatcher.antMatcher("/api"),
+                                                                AntPathRequestMatcher.antMatcher("/api/"))
+                                                .permitAll()
+                                                // All other endpoints require authentication
+                                                .anyRequest().authenticated())
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authenticationProvider(authenticationProvider())
+                                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-    @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
-        return provider;
-    }
+                return http.build();
+        }
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
+        @Bean
+        public AuthenticationProvider authenticationProvider() {
+                DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+                provider.setUserDetailsService(userDetailsService);
+                provider.setPasswordEncoder(passwordEncoder());
+                return provider;
+        }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+                return config.getAuthenticationManager();
+        }
+
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 }

@@ -15,7 +15,7 @@ import {
   Copy,
   ChevronRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { useCoursePermissions } from "@/hooks/useCoursePermissions";
 
 const meetings = [
@@ -119,14 +119,6 @@ const pastRecordings = [
 const CourseZoom = () => {
   const { isInstructor: isFaculty } = useCoursePermissions();
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
 
   return (
     <div className="p-4 sm:p-6 md:p-8 w-full min-w-0 overflow-x-hidden">

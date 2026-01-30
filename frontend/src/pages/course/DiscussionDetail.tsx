@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Reply, Edit, Trash2, Send, Search, Filter } from "lucide-react";
+import { getInitials } from "@/lib/utils";
 import {
   getDiscussion,
   createPost,
@@ -161,14 +162,6 @@ const DiscussionDetail = () => {
     return post.userId === user?.id || isFaculty;
   };
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase();
-  };
 
   const renderPost = (post: Post, isReply: boolean = false) => {
     const canEdit = canEditPost(post);

@@ -1,9 +1,16 @@
 import { Outlet } from "react-router-dom";
 import MainSidebar from "./MainSidebar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWebSockets } from "@/hooks/useWebSockets";
 import Topbar from "./Topbar";
 import Bottombar from "./Bottombar";
 
 const MainLayout = () => {
+  const { user } = useAuth();
+
+  // Initialize WebSockets for the current user
+  useWebSockets(user?.id);
+
   return (
     <div className="flex min-h-screen w-full bg-background overflow-hidden">
       <MainSidebar />

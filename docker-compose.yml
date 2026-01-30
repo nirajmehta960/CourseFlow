@@ -40,6 +40,15 @@ services:
       - courseflow-network
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: courseflow-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - courseflow-network
+    restart: unless-stopped
+
 networks:
   courseflow-network:
     driver: bridge

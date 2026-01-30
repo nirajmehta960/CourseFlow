@@ -2,6 +2,7 @@ package com.courseflow.inbox.service;
 
 import com.courseflow.auth.service.AuthService;
 import com.courseflow.common.error.ApiException;
+import com.courseflow.common.service.RealtimeService;
 import com.courseflow.enrollments.service.EnrollmentService;
 import com.courseflow.inbox.dto.MessageRequest;
 import com.courseflow.inbox.dto.MessageResponse;
@@ -25,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import org.bson.types.ObjectId;
 import java.util.stream.Collectors;
 
 /**
@@ -41,6 +43,7 @@ public class InboxService {
     private final EnrollmentService enrollmentService;
     private final NotificationService notificationService;
     private final UserRepository userRepository;
+    private final RealtimeService realtimeService;
 
     /**
      * Get threads for the current user with optional filters.
@@ -172,7 +175,7 @@ public class InboxService {
 
         // Create thread
         Thread thread = Thread.builder()
-                .id(UUID.randomUUID().toString())
+                .id(new ObjectId().toHexString())
                 .courseId(request.getCourseId())
                 .participantIds(participantIds)
                 .title(request.getTitle())
@@ -205,7 +208,7 @@ public class InboxService {
         }
 
         // Get messages for the thread
-        List<Message> messages = messageRepository.findByThreadIdOrderByCreatedAtAsc(threadId);
+        List<Message> messages = messageRepository.findByThreadIdOrderByCreatedAtAscIdAsc(threadId);
 
         return messages.stream()
                 .map(msg -> mapToMessageResponse(msg, userId))
@@ -234,7 +237,7 @@ public class InboxService {
 
         // Create message
         Message message = Message.builder()
-                .id(UUID.randomUUID().toString())
+                .id(new ObjectId().toHexString())
                 .threadId(threadId)
                 .senderId(userId)
                 .body(request.getBody())
@@ -253,7 +256,10 @@ public class InboxService {
         thread.setLastMessageAt(Instant.now());
         threadRepository.save(thread);
 
-        // Notify other participants in the thread
+        MessageResponse messageResponse = mapToMessageResponse(message, userId);
+
+        // Notify other participants and push real-time message to all participants
+        // (including sender)
         for (String participantId : thread.getParticipantIds()) {
             if (!participantId.equals(userId)) {
                 notificationService.notifyUser(
@@ -264,9 +270,12 @@ public class InboxService {
                         "/inbox?thread=" + threadId,
                         thread.getCourseId());
             }
+            // Push real-time message so conversation list refreshes for sender and
+            // recipients
+            realtimeService.sendMessage(participantId, mapToMessageResponse(message, participantId));
         }
 
-        return mapToMessageResponse(message, userId);
+        return messageResponse;
     }
 
     /**
@@ -324,7 +333,7 @@ public class InboxService {
         }
 
         // Get all messages in the thread
-        List<Message> messages = messageRepository.findByThreadIdOrderByCreatedAtAsc(threadId);
+        List<Message> messages = messageRepository.findByThreadIdOrderByCreatedAtAscIdAsc(threadId);
 
         // Mark all unread messages as read
         boolean updated = false;
@@ -350,18 +359,13 @@ public class InboxService {
                 thread.getId(), currentUserId);
         boolean hasUnread = unreadCount > 0;
 
-        // Get last message preview
-        List<Message> messages = messageRepository.findByThreadIdOrderByCreatedAtAsc(thread.getId());
-        String lastMessagePreview = null;
-        if (!messages.isEmpty()) {
-            Message lastMessage = messages.get(messages.size() - 1);
-            String preview = lastMessage.getBody();
-            if (preview != null && preview.length() > 100) {
-                preview = preview.substring(0, 97) + "...";
-            }
-            lastMessagePreview = preview;
-            lastMessagePreview = preview;
-        }
+        // Get last message preview (explicit latest-by-createdAt to avoid ordering
+        // issues)
+        String lastMessagePreview = messageRepository
+                .findFirstByThreadIdOrderByCreatedAtDesc(thread.getId())
+                .map(Message::getBody)
+                .map(body -> body != null && body.length() > 100 ? body.substring(0, 97) + "..." : body)
+                .orElse(null);
 
         // Fetch participant names
         List<String> participantNames = new ArrayList<>();
