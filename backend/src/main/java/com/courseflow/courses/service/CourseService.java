@@ -110,7 +110,7 @@ public class CourseService {
          *
          * @return List of all published courses
          */
-        // @Cacheable(cacheNames = RedisConfig.CACHE_COURSE_LISTS, key = "'published'")
+        @Cacheable(cacheNames = RedisConfig.CACHE_COURSE_LISTS, key = "'published'")
         public List<CourseResponse> getAllPublishedCourses() {
                 List<Course> courses = courseRepository.findByPublishedTrue();
                 return courses.stream()
@@ -154,7 +154,7 @@ public class CourseService {
                 // Verify enrollment
                 enrollmentService.verifyEnrollment(courseId, currentUser.getId());
 
-                Course course = courseRepository.findById(courseId)
+                Course course = courseCacheService.findById(courseId)
                                 .orElseThrow(() -> new ApiException("COURSE_NOT_FOUND", "Course not found", 404));
 
                 return mapToResponse(course);

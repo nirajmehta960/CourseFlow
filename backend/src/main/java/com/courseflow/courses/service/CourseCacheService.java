@@ -20,7 +20,7 @@ public class CourseCacheService {
 
     private final CourseRepository courseRepository;
 
-    // @Cacheable(cacheNames = RedisConfig.CACHE_COURSES, key = "#courseId")
+    @Cacheable(cacheNames = RedisConfig.CACHE_COURSES, key = "#courseId")
     public Optional<Course> findById(String courseId) {
         return courseRepository.findById(courseId);
     }

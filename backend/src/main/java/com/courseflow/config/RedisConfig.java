@@ -43,17 +43,39 @@ public class RedisConfig {
     public RedisTemplate<String, Object> redisTemplate() {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(redisConnectionFactory());
+
+        var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        objectMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        var jsonSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+
         template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+        template.setValueSerializer(jsonSerializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(jsonSerializer);
         return template;
     }
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        var jsonSerializer = new GenericJackson2JsonRedisSerializer();
+        var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        objectMapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        objectMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // Retain type info for polymorphic deserialization (needed by
+        // GenericJackson2JsonRedisSerializer default)
+        // But GenericJackson2JsonRedisSerializer handles this automatically if we use
+        // the constructor that takes ObjectMapper
+        // However, the simpler constructor
+        // GenericJackson2JsonRedisSerializer(ObjectMapper mapper) is protected or
+        // deprecated in some versions.
+        // Let's use the explicit configuration manually.
+
+        var jsonSerializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+
         var defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(10))
-                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+                .serializeKeysWith(
+                        RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .disableCachingNullValues();
 
@@ -61,8 +83,7 @@ public class RedisConfig {
                 CACHE_COURSES, defaultConfig.entryTtl(Duration.ofMinutes(10)),
                 CACHE_COURSE_LISTS, defaultConfig.entryTtl(Duration.ofMinutes(5)),
                 CACHE_NOTIFICATION_UNREAD_COUNT, defaultConfig.entryTtl(Duration.ofMinutes(2)),
-                CACHE_USERS, defaultConfig.entryTtl(Duration.ofMinutes(15))
-        );
+                CACHE_USERS, defaultConfig.entryTtl(Duration.ofMinutes(15)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)

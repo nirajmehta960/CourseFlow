@@ -18,13 +18,13 @@ public class UserCacheService {
 
     private final UserRepository userRepository;
 
-    // @Cacheable(cacheNames = RedisConfig.CACHE_USERS, key = "'email:' + #email")
+    @Cacheable(cacheNames = RedisConfig.CACHE_USERS, key = "'email:' + #email")
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
     }
 
-    // @Cacheable(cacheNames = RedisConfig.CACHE_USERS, key = "'id:' + #userId")
+    @Cacheable(cacheNames = RedisConfig.CACHE_USERS, key = "'id:' + #userId")
     public User findById(String userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));

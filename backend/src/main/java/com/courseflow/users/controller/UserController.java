@@ -52,7 +52,7 @@ public class UserController {
         // Update roles
         user.setRoles(request.getRoles());
         user = userRepository.save(user);
-        // evictUserCache(user);
+        evictUserCache(user);
 
         return ResponseEntity.ok(ApiResponse.success(user, "User roles updated successfully"));
     }
@@ -95,7 +95,7 @@ public class UserController {
             user.setLinks(request.getLinks());
 
         user = userRepository.save(user);
-        // evictUserCache(user);
+        evictUserCache(user);
 
         // Don't return password hash
         user.setPasswordHash(null);
@@ -117,14 +117,14 @@ public class UserController {
     }
 
     private void evictUserCache(User user) {
-        // var cache = cacheManager.getCache(RedisConfig.CACHE_USERS);
-        // if (cache != null) {
-        // if (user.getEmail() != null) {
-        // cache.evict("email:" + user.getEmail());
-        // }
-        // if (user.getId() != null) {
-        // cache.evict("id:" + user.getId());
-        // }
-        // }
+        var cache = cacheManager.getCache(RedisConfig.CACHE_USERS);
+        if (cache != null) {
+            if (user.getEmail() != null) {
+                cache.evict("email:" + user.getEmail());
+            }
+            if (user.getId() != null) {
+                cache.evict("id:" + user.getId());
+            }
+        }
     }
 }
