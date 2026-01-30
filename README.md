@@ -14,8 +14,6 @@ CourseFlow runs on EC2 via Docker Compose (frontend + backend + Redis), with Rea
 
 ![CourseFlow Architecture](courseflow-architecture.png)
 
-For a detailed breakdown of layers, data flows, and diagram verification, see [ARCHITECTURE.md](ARCHITECTURE.md). Diagram prompts and refinements are in [docs/PROMPT_ARCHITECTURE_DIAGRAM.md](docs/PROMPT_ARCHITECTURE_DIAGRAM.md).
-
 ---
 
 ## Features
