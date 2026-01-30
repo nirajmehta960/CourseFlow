@@ -3,6 +3,7 @@ package com.courseflow.users.controller;
 import com.courseflow.common.dto.ApiResponse;
 import com.courseflow.common.error.ApiException;
 import com.courseflow.common.security.RequireRole;
+import com.courseflow.config.RedisConfig;
 import com.courseflow.users.model.User;
 import com.courseflow.users.repository.UserRepository;
 import com.courseflow.users.dto.UpdateUserRolesRequest;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +28,7 @@ import java.util.List;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final CacheManager cacheManager;
 
     /**
      * Update user roles. Only admins can assign roles.
@@ -49,6 +52,7 @@ public class UserController {
         // Update roles
         user.setRoles(request.getRoles());
         user = userRepository.save(user);
+        evictUserCache(user);
 
         return ResponseEntity.ok(ApiResponse.success(user, "User roles updated successfully"));
     }
@@ -91,6 +95,7 @@ public class UserController {
             user.setLinks(request.getLinks());
 
         user = userRepository.save(user);
+        evictUserCache(user);
 
         // Don't return password hash
         user.setPasswordHash(null);
@@ -109,5 +114,17 @@ public class UserController {
         // Remove password hashes from response
         users.forEach(user -> user.setPasswordHash(null));
         return ResponseEntity.ok(ApiResponse.success(users));
+    }
+
+    private void evictUserCache(User user) {
+        var cache = cacheManager.getCache(RedisConfig.CACHE_USERS);
+        if (cache != null) {
+            if (user.getEmail() != null) {
+                cache.evict("email:" + user.getEmail());
+            }
+            if (user.getId() != null) {
+                cache.evict("id:" + user.getId());
+            }
+        }
     }
 }

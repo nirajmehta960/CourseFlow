@@ -6,6 +6,9 @@ spring:
     mongodb:
       uri: ${MONGODB_URI:mongodb://localhost:27017}
       database: ${MONGODB_DATABASE:CourseFlow}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   cloud:
     aws:

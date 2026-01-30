@@ -53,7 +53,7 @@ coverage/
 *.tmp
 *.temp
 
-# Deployment documentation
+# Deployment documentation (root *.md ignored; allow listed files only)
 *.md
 !README.md
 !DEPLOYMENT.md
@@ -61,6 +61,9 @@ coverage/
 !AWS_S3_SETUP.md
 !HTTPS_SETUP.md
 !ARCHITECTURE.md
+
+# Docs folder (diagram source, prompts — not tracked)
+docs/
 
 # Secrets
 *.pem

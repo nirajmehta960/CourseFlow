@@ -5,9 +5,12 @@ import com.courseflow.enrollments.repository.EnrollmentRepository;
 import com.courseflow.common.service.RealtimeService;
 import com.courseflow.notifications.dto.NotificationResponse;
 import com.courseflow.notifications.model.Notification;
+import com.courseflow.config.RedisConfig;
 import com.courseflow.notifications.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -55,10 +58,11 @@ public class NotificationService {
 
     /**
      * Get unread notification count for a user.
-     * 
+     *
      * @param userId The user ID
      * @return Number of unread notifications
      */
+    @Cacheable(cacheNames = RedisConfig.CACHE_NOTIFICATION_UNREAD_COUNT, key = "#userId")
     public long getUnreadCount(String userId) {
         // Fallback to fetch-and-count to avoid potential issue with strict countBy
         // derivation
@@ -67,10 +71,11 @@ public class NotificationService {
 
     /**
      * Mark a notification as read.
-     * 
+     *
      * @param userId         The user ID
      * @param notificationId The notification ID
      */
+    @CacheEvict(cacheNames = RedisConfig.CACHE_NOTIFICATION_UNREAD_COUNT, key = "#userId")
     public void markAsRead(String userId, String notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new ApiException("NOTIFICATION_NOT_FOUND", "Notification not found", 404));
@@ -86,9 +91,10 @@ public class NotificationService {
 
     /**
      * Mark all notifications as read for a user.
-     * 
+     *
      * @param userId The user ID
      */
+    @CacheEvict(cacheNames = RedisConfig.CACHE_NOTIFICATION_UNREAD_COUNT, key = "#userId")
     public void markAllAsRead(String userId) {
         List<Notification> unreadNotifications = notificationRepository
                 .findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
@@ -99,13 +105,14 @@ public class NotificationService {
 
     /**
      * Create a notification for a single user.
-     * 
+     *
      * @param userId The user ID
      * @param type   The notification type
      * @param title  The notification title
      * @param body   The notification body
      * @param link   The link to the relevant resource
      */
+    @CacheEvict(cacheNames = RedisConfig.CACHE_NOTIFICATION_UNREAD_COUNT, key = "#userId")
     public void createNotification(String userId, Notification.NotificationType type, String title, String body,
             String link, String courseId) {
         Notification notification = Notification.builder()

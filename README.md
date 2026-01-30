@@ -8,6 +8,16 @@ CourseFlow is a full-featured LMS that brings together students, instructors, an
 
 ---
 
+## Architecture
+
+CourseFlow runs on EC2 via Docker Compose (frontend + backend + Redis), with React + Spring Boot, JWT + RBAC, MongoDB + S3 + Redis, and STOMP WebSocket. CI/CD is handled by GitHub Actions → GHCR → SSH deploy → EC2.
+
+![CourseFlow Architecture](courseflow-architecture.png)
+
+For a detailed breakdown of layers, data flows, and diagram verification, see [ARCHITECTURE.md](ARCHITECTURE.md). Diagram prompts and refinements are in [docs/PROMPT_ARCHITECTURE_DIAGRAM.md](docs/PROMPT_ARCHITECTURE_DIAGRAM.md).
+
+---
+
 ## Features
 
 ### Core Functionality

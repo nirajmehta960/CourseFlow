@@ -1,6 +1,7 @@
 package com.courseflow.courses.service;
 
 import com.courseflow.auth.service.AuthService;
+import com.courseflow.config.RedisConfig;
 import com.courseflow.common.error.ApiException;
 import com.courseflow.courses.dto.CoursePeopleResponse;
 import com.courseflow.courses.dto.CourseRequest;
@@ -14,6 +15,9 @@ import com.courseflow.users.model.User;
 import com.courseflow.users.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -30,6 +34,7 @@ import java.util.stream.Collectors;
 public class CourseService {
 
     private final CourseRepository courseRepository;
+    private final CourseCacheService courseCacheService;
     private final EnrollmentService enrollmentService;
     private final EnrollmentRepository enrollmentRepository;
     private final com.courseflow.assignments.repository.SubmissionRepository submissionRepository;
@@ -38,10 +43,11 @@ public class CourseService {
 
     /**
      * Create a new course and automatically enroll the creator as instructor.
-     * 
+     *
      * @param request Course creation request
      * @return Created course response
      */
+    @CacheEvict(cacheNames = RedisConfig.CACHE_COURSE_LISTS, key = "'published'")
     public CourseResponse createCourse(CourseRequest request) {
         User currentUser = authService.getCurrentUser();
 
@@ -100,9 +106,10 @@ public class CourseService {
 
     /**
      * Get all published courses (for browsing by all users).
-     * 
+     *
      * @return List of all published courses
      */
+    @Cacheable(cacheNames = RedisConfig.CACHE_COURSE_LISTS, key = "'published'")
     public List<CourseResponse> getAllPublishedCourses() {
         List<Course> courses = courseRepository.findByPublishedTrue();
         return courses.stream()
@@ -136,7 +143,7 @@ public class CourseService {
 
     /**
      * Get course by ID. Verifies user is enrolled.
-     * 
+     *
      * @param courseId Course ID
      * @return Course response
      */
@@ -146,7 +153,7 @@ public class CourseService {
         // Verify enrollment
         enrollmentService.verifyEnrollment(courseId, currentUser.getId());
 
-        Course course = courseRepository.findById(courseId)
+        Course course = courseCacheService.findById(courseId)
                 .orElseThrow(() -> new ApiException("COURSE_NOT_FOUND", "Course not found", 404));
 
         return mapToResponse(course);
@@ -154,11 +161,15 @@ public class CourseService {
 
     /**
      * Update a course. Only instructors/admins can update.
-     * 
+     *
      * @param courseId Course ID
      * @param request  Course update request
      * @return Updated course response
      */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = RedisConfig.CACHE_COURSES, key = "#courseId"),
+            @CacheEvict(cacheNames = RedisConfig.CACHE_COURSE_LISTS, key = "'published'")
+    })
     public CourseResponse updateCourse(String courseId, CourseRequest request) {
         User currentUser = authService.getCurrentUser();
 
@@ -416,9 +427,13 @@ public class CourseService {
 
     /**
      * Delete a course. Only admin or course owner can delete.
-     * 
+     *
      * @param courseId Course ID
      */
+    @Caching(evict = {
+            @CacheEvict(cacheNames = RedisConfig.CACHE_COURSES, key = "#courseId"),
+            @CacheEvict(cacheNames = RedisConfig.CACHE_COURSE_LISTS, key = "'published'")
+    })
     public void deleteCourse(String courseId) {
         User currentUser = authService.getCurrentUser();
 
